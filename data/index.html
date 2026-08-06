@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Desk Dashboard</title>
+  <style>
+    :root {
+      --bg: #f2f2f0;
+      /* page */
+      --card: #ffffff;
+      /* sections */
+      --ink: #111111;
+      --mid: #71716e;
+      --soft: #a3a3a0;
+      --line: #e4e4e1;
+      --field: #fafaf9;
+      --hover: #2b2b2a;
+      --r-card: 16px;
+      --r-el: 10px;
+      --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+      --sans: -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      font: 15px/1.55 var(--sans);
+      margin: 0 auto;
+      max-width: 37rem;
+      padding: 2.4rem 1.15rem 4rem;
+      color: var(--ink);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* masthead */
+    header {
+      margin: 0 .25rem 1.7rem
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      margin: 0
+    }
+
+    .sub {
+      color: var(--mid);
+      font-size: .86rem;
+      margin: .25rem 0 0
+    }
+
+    /* sections as rounded cards */
+    section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--r-card);
+      padding: 1.35rem 1.4rem 1.45rem;
+      margin: .9rem 0;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, .03);
+    }
+
+    h2 {
+      font-size: .72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: var(--soft);
+      margin: 0 0 1.05rem;
+    }
+
+    /* form furniture */
+    label {
+      display: block;
+      margin: .8rem 0;
+      font-size: .93rem
+    }
+
+    label small {
+      display: block;
+      font-size: .78rem;
+      font-weight: 500;
+      color: var(--mid);
+      margin-bottom: .35rem
+    }
+
+    select,
+    input[type=text],
+    input[type=password] {
+      font: inherit;
+      color: var(--ink);
+      background: var(--field);
+      border: 1px solid var(--line);
+      border-radius: var(--r-el);
+      padding: .6rem .7rem;
+      width: 100%;
+      transition: border-color .15s, background .15s, box-shadow .15s;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2371716e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right .8rem center;
+      padding-right: 2.2rem;
+    }
+
+    select:hover,
+    input[type=text]:hover,
+    input[type=password]:hover {
+      border-color: var(--soft)
+    }
+
+    select:focus,
+    input:focus {
+      outline: none;
+      background: #fff;
+      border-color: var(--ink);
+      box-shadow: 0 0 0 3px rgba(17, 17, 17, .08)
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--ink);
+      outline-offset: 2px
+    }
+
+    input[type=checkbox],
+    input[type=radio] {
+      accent-color: var(--ink);
+      width: 16px;
+      height: 16px;
+      vertical-align: -3px;
+      margin-right: .5rem
+    }
+
+    ::placeholder {
+      color: var(--soft)
+    }
+
+    /* buttons */
+    button {
+      font: 600 .86rem/1 var(--sans);
+      padding: .66rem 1.15rem;
+      cursor: pointer;
+      border: 1px solid var(--ink);
+      border-radius: 999px;
+      background: var(--ink);
+      color: #fff;
+      transition: background .15s, border-color .15s, transform .06s;
+    }
+
+    button:hover {
+      background: var(--hover);
+      border-color: var(--hover)
+    }
+
+    button:active {
+      transform: scale(.98)
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: .8rem;
+      margin-top: 1.15rem;
+      flex-wrap: wrap
+    }
+
+    /* status text */
+    .m {
+      color: var(--mid);
+      font-size: .84rem
+    }
+
+    .ok {
+      color: var(--ink);
+      font-weight: 500
+    }
+
+    span.ok::before {
+      content: "\2713\00a0"
+    }
+
+    .readout,
+    #mkst,
+    #wn {
+      font-family: var(--mono);
+      font-size: .84rem;
+      color: var(--ink)
+    }
+
+    [disabled] {
+      opacity: .45
+    }
+
+    /* task rows (rendered by script) */
+    .row {
+      display: flex;
+      gap: .6rem;
+      align-items: center;
+      margin: .55rem 0
+    }
+
+    .row input[type=text] {
+      flex: 1
+    }
+
+    .row input:disabled {
+      background: var(--bg);
+      color: var(--soft);
+      text-decoration: line-through;
+      border-color: transparent
+    }
+
+    .del {
+      background: transparent;
+      color: var(--soft);
+      border: 1px solid transparent;
+      padding: .4rem .62rem;
+      font-size: 1rem;
+      line-height: 1;
+      border-radius: var(--r-el);
+    }
+
+    .del:hover {
+      background: var(--bg);
+      border-color: var(--line);
+      color: var(--ink)
+    }
+
+    /* weather search */
+    .search {
+      display: flex;
+      gap: .6rem
+    }
+
+    .search input {
+      flex: 1
+    }
+
+    .search button {
+      flex-shrink: 0
+    }
+
+    a {
+      color: var(--ink);
+      text-underline-offset: 2px
+    }
+
+    a:hover {
+      color: var(--mid)
+    }
+
+    hr.rule {
+      border: 0;
+      border-top: 1px solid var(--line);
+      margin: 1.1rem 0
+    }
+
+    @media (prefers-reduced-motion:reduce) {
+      * {
+        transition: none !important
+      }
+
+      button:active {
+        transform: none
+      }
+    }
+
+    /* accordion */
+    section.acc>h2 {
+      margin: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    section.acc>h2:hover {
+      color: var(--mid)
+    }
+
+    section.acc.open>h2 {
+      margin-bottom: 1.05rem
+    }
+
+    /* chevron indicator */
+    .chev {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
+      border-right: 1.6px solid currentColor;
+      border-bottom: 1.6px solid currentColor;
+      transform: rotate(45deg);
+      transition: transform .2s ease;
+      margin-left: .8rem;
+      margin-top: -3px;
+    }
+
+    section.acc.open .chev {
+      transform: rotate(225deg);
+      margin-top: 2px
+    }
+
+    /* collapsible body */
+    .panel-body {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height .28s ease, opacity .2s ease;
+    }
+
+    section.acc.open .panel-body {
+      max-height: 60rem;
+      opacity: 1;
+    }
+
+    @media (prefers-reduced-motion:reduce) {
+      .panel-body {
+        transition: none
+      }
+
+      .chev {
+        transition: none
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Desk Dashboard</h1>
+  </header>
+
+  <section id="info-card">
+    <h2>Info screen</h2>
+    <p class="m">Welcome! Dismiss the info screen below. Your settings are just underneath.</p>
+    <div class="actions"><button onclick="dismiss()">Dismiss info screen</button> <span id="dr" class="m"></span></div>
+  </section>
+
+  <section class="acc">
+    <h2 onclick="toggleAcc(this.parentElement)">Clock<span class="chev"></span></h2>
+    <div class="panel-body">
+      <label><small>Time zone</small><select id="tz"></select></label>
+      <label><input type="checkbox" id="sd"> Show the date on the clock screen</label>
+      <p class="m">Device time: <span id="now" class="readout">&mdash;</span></p>
+      <div class="actions"><button onclick="syncClock()">Save</button> <span id="cr" class="m"></span></div>
+    </div>
+  </section>
+
+  <section class="acc">
+    <h2 onclick="toggleAcc(this.parentElement)">Tasks<span class="chev"></span></h2>
+    <div class="panel-body">
+      <div id="tl"></div>
+      <div class="actions"><button onclick="sendTasks()">Save</button> <span id="tr" class="m"></span></div>
+    </div>
+  </section>
+
+  <section class="acc">
+    <h2 onclick="toggleAcc(this.parentElement)">Weather<span class="chev"></span></h2>
+    <div class="panel-body">
+      <div class="search">
+        <input id="wq" type="text" placeholder="Search for a town or city" onkeydown="if(event.key==='Enter')geocode()">
+        <button onclick="geocode()">Search</button>
+      </div>
+      <label id="lwl" style="display:none"><small>Matches</small><select id="wl"
+          onchange="pickPlace()"></select></label>
+      <p class="m">Location: <b id="wn">not set</b><span id="wa"></span></p>
+      <div class="actions"><button onclick="sendWx()">Save</button> <span id="wr" class="m"></span></div>
+    </div>
+  </section>
+
+  <section class="acc">
+    <h2 onclick="toggleAcc(this.parentElement)">Markets<span class="chev"></span></h2>
+    <div class="panel-body">
+      <p class="m">Shows <b id="mklabel">SPY</b> (S&amp;P 500 ETF). Needs a free
+        <a href="https://twelvedata.com" target="_blank" rel="noopener">Twelve Data</a> API key.
+      </p>
+      <label><input type="password" id="mk" placeholder="Paste your API key" autocomplete="off"></label>
+      <p class="m">Status: <b id="mkst">not set</b></p>
+      <div class="actions"><button onclick="sendMarket()">Save</button> <span id="mkr" class="m"></span></div>
+    </div>
+  </section>
+
+  <section class="acc">
+    <h2 onclick="toggleAcc(this.parentElement)">Display<span class="chev"></span></h2>
+    <div class="panel-body">
+      <label><input type="radio" name="dm" value="0" id="dm0" onchange="modeChanged()"> Cycle through screens</label>
+      <label><input type="radio" name="dm" value="1" id="dm1" onchange="modeChanged()"> Show one screen only</label>
+      <label id="lss"><small>Screen</small><select id="ss"></select></label>
+      <label id="ldw"><small>Time between screen changes</small><select id="dw"></select></label>
+      <div class="actions"><button onclick="syncDisplay()">Save</button> <span id="sr" class="m"></span></div>
+    </div>
+  </section>
+
+  <script>
+    const esc = s => s.replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/</g, '&lt;');
+    const deaccent = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    // accordion: open one panel, close the others -----------------------
+    function toggleAcc(section) {
+      const wasOpen = section.classList.contains('open');
+      document.querySelectorAll('section.acc.open').forEach(s => s.classList.remove('open'));
+      if (!wasOpen) section.classList.add('open');
+    }
+
+    // clock ------------------------------------------------------------
+    async function syncClock() {
+      const o = tz.selectedOptions[0];
+      const q = new URLSearchParams({ tz: tz.value, label: o.dataset.l, date: sd.checked ? 1 : 0 });
+      const r = await fetch('/api/clock?' + q, { method: 'POST' });
+      cr.textContent = r.ok ? 'saved' : 'failed';
+      cr.className = r.ok ? 'm ok' : 'm';
+      setTimeout(load, 600);
+    }
+
+    // tasks -------------------------------------------------------------
+    let TASKS = [];
+    function drawTasks() {
+      tl.innerHTML = TASKS.map((t, i) =>
+        `<div class="row">
+           <input type="checkbox" ${t.done ? 'checked' : ''} onchange="TASKS[${i}].done=this.checked;drawTasks()">
+           <input type="text" maxlength="47" value="${esc(t.title)}" placeholder="Task ${i + 1}" ${t.done ? 'disabled' : ''} oninput="TASKS[${i}].title=this.value">
+           <button class="del" onclick="delTask(${i})" title="Delete">&times;</button>
+         </div>`).join('');
+    }
+    function delTask(i) { TASKS.splice(i, 1); TASKS.push({ title: '', done: false }); drawTasks(); }
+    async function loadTasks() {
+      TASKS = await (await fetch('/api/tasks')).json();
+      while (TASKS.length < 5) TASKS.push({ title: '', done: false });
+      drawTasks();
+    }
+    async function sendTasks() {
+      const q = new URLSearchParams();
+      TASKS.forEach((t, i) => { q.append('t' + i, t.title); q.append('d' + i, t.done ? 1 : 0); });
+      const r = await fetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: q.toString() });
+      tr.textContent = r.ok ? 'saved' : 'failed';
+      tr.className = r.ok ? 'm ok' : 'm';
+      setTimeout(loadTasks, 600);
+    }
+
+    // weather (geocoding happens in the browser) ------------------------
+    let WX = { lat: 0, lon: 0, name: '' };
+    let GEO = [];
+    function showWx() {
+      if (!WX.name) { wn.textContent = 'not set'; wa.textContent = ''; return; }
+      wn.textContent = `${WX.name} (${(+WX.lat).toFixed(2)}, ${(+WX.lon).toFixed(2)})`;
+      const orig = GEO[wl.value] ? GEO[wl.value].name : '';
+      wa.textContent = (orig && orig !== WX.name) ? '' : '';
+    }
+    async function geocode() {
+      const q = wq.value.trim();
+      if (!q) return;
+      wr.textContent = 'searching...'; wr.className = 'm';
+      try {
+        const u = 'https://geocoding-api.open-meteo.com/v1/search?count=8&language=en&format=json&name=' + encodeURIComponent(q);
+        GEO = ((await (await fetch(u)).json()).results) || [];
+      } catch (e) { GEO = []; }
+      if (!GEO.length) { wr.textContent = 'no matches'; lwl.style.display = 'none'; return; }
+      wl.innerHTML = GEO.map((p, i) =>
+        `<option value="${i}">${esc(p.name)}${p.admin1 ? ', ' + esc(p.admin1) : ''}, ${esc(p.country || '')}</option>`).join('');
+      lwl.style.display = ''; wr.textContent = GEO.length + ' match' + (GEO.length > 1 ? 'es' : '');
+      pickPlace();
+    }
+    function pickPlace() {
+      const p = GEO[wl.value];
+      if (!p) return;
+      WX.lat = p.latitude; WX.lon = p.longitude; WX.name = deaccent(p.name);
+      showWx();
+    }
+    async function loadWx() {
+      const w = await (await fetch('/api/weather')).json();
+      WX = { lat: w.lat, lon: w.lon, name: w.name };
+      showWx();
+    }
+    async function sendWx() {
+      if (!WX.name) { wr.textContent = 'search for a location first'; wr.className = 'm'; return; }
+      const q = new URLSearchParams({ lat: WX.lat, lon: WX.lon, name: WX.name });
+      const r = await fetch('/api/weather?' + q, { method: 'POST' });
+      wr.textContent = r.ok ? 'saved - fetching weather' : 'failed';
+      wr.className = r.ok ? 'm ok' : 'm';
+      setTimeout(loadWx, 800);
+    }
+
+    // display -------------------------------------------------------
+    function modeChanged() {
+      const stat = dm1.checked;
+      ss.disabled = !stat; lss.toggleAttribute('disabled', !stat);
+      dw.disabled = stat; ldw.toggleAttribute('disabled', stat);
+    }
+    async function syncDisplay() {
+      const q = new URLSearchParams({ mode: dm1.checked ? 1 : 0, screen: ss.value, dwell: dw.value });
+      const r = await fetch('/api/display?' + q, { method: 'POST' });
+      sr.textContent = r.ok ? 'saved' : 'failed';
+      sr.className = r.ok ? 'm ok' : 'm';
+      setTimeout(load, 600);
+    }
+
+    // markets -------------------------------------------------------
+    async function loadMarket() {
+      const m = await (await fetch('/api/markets')).json();
+      mklabel.textContent = m.label;
+      mkst.textContent = m.configured ? 'key set' : 'not set';
+      mkst.className = m.configured ? 'ok' : '';
+    }
+    async function sendMarket() {
+      const key = mk.value.trim();
+      if (!key) { mkr.textContent = 'paste a key first'; mkr.className = 'm'; return; }
+      const r = await fetch('/api/markets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ key }).toString()
+      });
+      mkr.textContent = r.ok ? 'saved - fetching price' : 'rejected (check the key)';
+      mkr.className = r.ok ? 'm ok' : 'm';
+      mk.value = '';
+      setTimeout(loadMarket, 800);
+    }
+
+    // info ------------------------------------------------------------
+    async function dismiss() {
+      const r = await fetch('/api/dismiss', { method: 'POST' });
+      dr.textContent = r.ok ? 'dismissed' : 'failed';
+      if (r.ok) document.getElementById('info-card').style.display = 'none';
+      dr.className = r.ok ? 'm ok' : 'm';
+    }
+
+    // initial load -----------------------------------------------------
+    async function load() {
+      const zs = await (await fetch('/api/timezones')).json();
+      const c = await (await fetch('/api/clock')).json();
+      const sc = await (await fetch('/api/screens')).json();
+      const d = await (await fetch('/api/display')).json();
+
+      tz.innerHTML = zs.map(z => `<option value="${z.posix}" data-l="${z.label}">${z.label}</option>`).join('');
+      tz.value = c.tz; sd.checked = c.showDate;
+      now.textContent = c.now;
+      document.getElementById('info-card').style.display = c.infoSeen ? 'none' : '';
+
+      ss.innerHTML = sc.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+      let o = '';
+      for (let m = d.min; m <= d.max; m += d.step) o += `<option value="${m}">${m} minutes</option>`;
+      dw.innerHTML = o;
+
+      ss.value = d.screen; dw.value = d.dwell;
+      (d.mode == 1 ? dm1 : dm0).checked = true; modeChanged();
+
+      await loadTasks();
+      await loadWx();
+      await loadMarket();
+    }
+
+    load();
+    setInterval(async () => {
+      try { const c = await (await fetch('/api/clock')).json(); now.textContent = c.now; } catch (e) { }
+    }, 5000);
+  </script>
+</body>
+
+</html>
