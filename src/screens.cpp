@@ -124,10 +124,23 @@ void drawClock(Adafruit_GFX &g, const AppState &s) {
 
   g.setTextSize(CLOCK_DIGIT_SIZE);
 
+  // Measure both hours and minutes width and center them together,
+  // keeping a fixed gap between them.
+  int16_t bx, by;
+  uint16_t bw, bh;
+
+  g.getTextBounds(hh, 0, CLOCK_DIGIT_Y, &bx, &by, &bw, &bh);
+  const int16_t hourW = (int16_t)bw, hourOff = bx;
+
+  g.getTextBounds(mm, 0, CLOCK_DIGIT_Y, &bx, &by, &bw, &bh);
+  const int16_t minW = (int16_t)bw, minOff = bx;
+
+  const int16_t left = (SCREEN_W - (hourW + CLOCK_DIGIT_GAP + minW)) / 2;
+
   // Hollow minutes, solid hours
-  printOutlined(g, mm, CLOCK_MIN_X, CLOCK_MIN_Y);
+  printOutlined(g, mm, left + hourW + CLOCK_DIGIT_GAP - minOff, CLOCK_DIGIT_Y);
   g.setTextColor(COL_BLACK);
-  printAt(g, hh, CLOCK_HOUR_X, CLOCK_HOUR_Y);
+  printAt(g, hh, left - hourOff, CLOCK_DIGIT_Y);
 
   // Centred, the date's length changes with the day and month
   if (s.showDate) {

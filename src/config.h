@@ -102,12 +102,10 @@ constexpr int16_t MSG_LINE2_Y = 185;
 constexpr int16_t MSG_SINGLE_Y = 165;
 
 // CLOCK SCREEN ---------------------------------------------------------------
-// Hour, minute digits
+// Clock digits
 constexpr uint8_t CLOCK_DIGIT_SIZE = 15;
-constexpr int16_t CLOCK_HOUR_X = 24;
-constexpr int16_t CLOCK_HOUR_Y = 159;
-constexpr int16_t CLOCK_MIN_X = 214;
-constexpr int16_t CLOCK_MIN_Y = 158;
+constexpr int16_t CLOCK_DIGIT_Y = 160;
+constexpr int16_t CLOCK_DIGIT_GAP = 30;
 constexpr int8_t CLOCK_OUTLINE_PX = 2; // Hollow minute stroke width
 
 // Date under the digits. X is computed at draw time so it stays centred.
