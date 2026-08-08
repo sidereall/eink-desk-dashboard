@@ -4,313 +4,383 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Desk Dashboard</title>
+  <title>E-ink Desk Dashboard</title>
   <style>
+    @font-face {
+      font-family: 'Micro5';
+      src: url('/font') format('truetype');
+      font-display: block;
+    }
+
     :root {
       --bg: #f2f2f0;
-      /* page */
       --card: #ffffff;
-      /* sections */
       --ink: #111111;
       --mid: #71716e;
       --soft: #a3a3a0;
       --line: #e4e4e1;
       --field: #fafaf9;
       --hover: #2b2b2a;
+
       --r-card: 16px;
       --r-el: 10px;
-      --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
-      --sans: -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font: 'Micro5', -apple-system, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+
+      /* Text sizes */
+      --t-body: 1.46rem;
+      --t-title: 2.5rem;
+      --t-head: 1.46rem;
+      --t-label: 1.35rem;
+      --t-small: 1.25rem;
+      --t-field: 1.3rem;
+      --t-note: 1.15rem;
+
+      /* Spacing. --gap is the distance between items inside a panel. */
+      --gap: .62rem;
+      --pad-card: 1.52rem 1.58rem;
+      --space: 1.01rem;
+
+      --on-ink: #ffffff;
+      --shadow: rgba(0, 0, 0, .03);
+      --ring: rgba(17, 17, 17, .08);
     }
 
-    * {
-      box-sizing: border-box
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #131315;
+        --card: #1d1d20;
+        --ink: #ececea;
+        --mid: #9a9a95;
+        --soft: #6f6f6b;
+        --line: #303034;
+        --field: #26262a;
+        --hover: #ffffff;
+
+        --on-ink: #131315;
+        --shadow: rgba(0, 0, 0, .25);
+        --ring: rgba(236, 236, 234, .12);
+      }
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    /* Form controls don't inherit fonts, so they're named explicitly. */
+    body,
+    input,
+    select,
+    button {
+      font-family: var(--font);
     }
 
     body {
-      font: 15px/1.55 var(--sans);
+      font-size: var(--t-body);
+      line-height: 1.55;
       margin: 0 auto;
-      max-width: 37rem;
-      padding: 2.4rem 1.15rem 4rem;
+      max-width: 41rem;
+      padding: 2.7rem 1.29rem 4.5rem;
       color: var(--ink);
       background: var(--bg);
       -webkit-font-smoothing: antialiased;
     }
 
-    /* masthead */
     header {
-      margin: 0 .25rem 1.7rem
+      margin: 0 .28rem 2.25rem;
+      text-align: center;
     }
 
     h1 {
-      font-size: 1.35rem;
+      font-size: var(--t-title);
       font-weight: 700;
-      letter-spacing: -.02em;
-      margin: 0
+      margin: 0;
     }
 
-    .sub {
-      color: var(--mid);
-      font-size: .86rem;
-      margin: .25rem 0 0
-    }
-
-    /* sections as rounded cards */
+    /* CARDS */
     section {
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: var(--r-card);
-      padding: 1.35rem 1.4rem 1.45rem;
-      margin: .9rem 0;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, .03);
+      padding: var(--pad-card);
+      margin: var(--space) 0;
+      box-shadow: 0 1px 2px var(--shadow);
     }
 
     h2 {
-      font-size: .72rem;
+      font-size: var(--t-head);
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: .12em;
-      color: var(--soft);
-      margin: 0 0 1.05rem;
+      letter-spacing: .1em;
+      color: var(--ink);
+      margin: 0 0 var(--space);
     }
 
-    /* form furniture */
+    /* SPACING */
+    label,
+    .m,
+    #tl,
+    .search {
+      margin: var(--gap) 0;
+    }
+
+    section>*:first-child,
+    .panel-body>*:first-child {
+      margin-top: 0;
+    }
+
+    section>*:last-child,
+    .panel-body>*:last-child {
+      margin-bottom: 0;
+    }
+
+    /* The search box has no label above it, so it needs a added space to line up
+       with the other panels. */
+    .panel-body>.search:first-child {
+      margin-top: .34rem;
+    }
+
+    /* FIELDS */
     label {
       display: block;
-      margin: .8rem 0;
-      font-size: .93rem
+      font-size: var(--t-label);
     }
 
     label small {
       display: block;
-      font-size: .78rem;
-      font-weight: 500;
+      font-size: var(--t-small);
       color: var(--mid);
-      margin-bottom: .35rem
+      margin-bottom: .28rem;
     }
 
     select,
     input[type=text],
     input[type=password] {
-      font: inherit;
+      font-size: var(--t-field);
+      width: 100%;
+      padding: .68rem .79rem;
       color: var(--ink);
       background: var(--field);
       border: 1px solid var(--line);
       border-radius: var(--r-el);
-      padding: .6rem .7rem;
-      width: 100%;
-      transition: border-color .15s, background .15s, box-shadow .15s;
       appearance: none;
-      -webkit-appearance: none;
+      transition: border-color .15s, background .15s, box-shadow .15s;
     }
 
     select {
+      padding-right: 2.5rem;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2371716e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
-      background-position: right .8rem center;
-      padding-right: 2.2rem;
+      background-position: right .9rem center;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      select {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239a9a95' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      }
     }
 
     select:hover,
-    input[type=text]:hover,
-    input[type=password]:hover {
-      border-color: var(--soft)
+    input:hover {
+      border-color: var(--soft);
     }
 
     select:focus,
     input:focus {
       outline: none;
-      background: #fff;
+      background: var(--card);
       border-color: var(--ink);
-      box-shadow: 0 0 0 3px rgba(17, 17, 17, .08)
+      box-shadow: 0 0 0 3px var(--ring);
     }
 
     :focus-visible {
       outline: 2px solid var(--ink);
-      outline-offset: 2px
+      outline-offset: 2px;
+    }
+
+    ::placeholder {
+      color: var(--soft);
+    }
+
+    label:has(input[type=checkbox]),
+    label:has(input[type=radio]) {
+      display: flex;
+      align-items: center;
+      gap: .56rem;
     }
 
     input[type=checkbox],
     input[type=radio] {
+      width: 1.05em;
+      height: 1.05em;
+      margin: 0;
+      flex-shrink: 0;
       accent-color: var(--ink);
-      width: 16px;
-      height: 16px;
-      vertical-align: -3px;
-      margin-right: .5rem
     }
 
-    ::placeholder {
-      color: var(--soft)
-    }
-
-    /* buttons */
+    /* BUTTONS */
     button {
-      font: 600 .86rem/1 var(--sans);
-      padding: .66rem 1.15rem;
+      font-size: var(--t-field);
+      font-weight: 600;
+      line-height: 1;
+      padding: .74rem 1.29rem;
       cursor: pointer;
+      color: var(--on-ink);
+      background: var(--ink);
       border: 1px solid var(--ink);
       border-radius: 999px;
-      background: var(--ink);
-      color: #fff;
       transition: background .15s, border-color .15s, transform .06s;
     }
 
     button:hover {
+      color: var(--on-ink);
       background: var(--hover);
-      border-color: var(--hover)
+      border-color: var(--hover);
     }
 
     button:active {
-      transform: scale(.98)
+      transform: scale(.98);
     }
 
     .actions {
       display: flex;
       align-items: center;
-      gap: .8rem;
-      margin-top: 1.15rem;
-      flex-wrap: wrap
+      flex-wrap: wrap;
+      gap: .9rem;
+      margin: var(--space) 0 0;
     }
 
-    /* status text */
+    /* STATUS TEXT */
     .m {
+      font-size: var(--t-note);
       color: var(--mid);
-      font-size: .84rem
     }
 
     .ok {
       color: var(--ink);
-      font-weight: 500
+      font-weight: 500;
     }
 
     span.ok::before {
-      content: "\2713\00a0"
+      content: "\2713\00a0";
     }
 
+    /* Values read back from the device. */
     .readout,
     #mkst,
     #wn {
-      font-family: var(--mono);
-      font-size: .84rem;
-      color: var(--ink)
+      font-size: var(--t-note);
+      color: var(--ink);
     }
 
     [disabled] {
-      opacity: .45
+      opacity: .45;
     }
 
-    /* task rows (rendered by script) */
+    /* TASK ROWS */
     .row {
       display: flex;
-      gap: .6rem;
       align-items: center;
-      margin: .55rem 0
+      gap: .68rem;
+      margin: .45rem 0;
+    }
+
+    .row:first-child {
+      margin-top: 0;
+    }
+
+    .row:last-child {
+      margin-bottom: 0;
     }
 
     .row input[type=text] {
-      flex: 1
+      flex: 1;
     }
 
     .row input:disabled {
       background: var(--bg);
       color: var(--soft);
       text-decoration: line-through;
-      border-color: transparent
+      border-color: transparent;
     }
 
     .del {
-      background: transparent;
-      color: var(--soft);
-      border: 1px solid transparent;
-      padding: .4rem .62rem;
-      font-size: 1rem;
+      padding: .45rem .7rem;
+      font-size: 1.58rem;
       line-height: 1;
+      color: var(--soft);
+      background: transparent;
+      border: 1px solid transparent;
       border-radius: var(--r-el);
     }
 
     .del:hover {
+      color: var(--ink);
       background: var(--bg);
       border-color: var(--line);
-      color: var(--ink)
     }
 
-    /* weather search */
+    /* WEATHER SEARCH */
     .search {
       display: flex;
-      gap: .6rem
+      gap: .68rem;
     }
 
     .search input {
-      flex: 1
+      flex: 1;
     }
 
     .search button {
-      flex-shrink: 0
+      flex-shrink: 0;
     }
 
     a {
       color: var(--ink);
-      text-underline-offset: 2px
+      text-underline-offset: 2px;
     }
 
     a:hover {
-      color: var(--mid)
+      color: var(--mid);
     }
 
-    hr.rule {
-      border: 0;
-      border-top: 1px solid var(--line);
-      margin: 1.1rem 0
-    }
-
-    @media (prefers-reduced-motion:reduce) {
-      * {
-        transition: none !important
-      }
-
-      button:active {
-        transform: none
-      }
-    }
-
-    /* accordion */
+    /* ACCORDION */
     section.acc>h2 {
-      margin: 0;
-      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      margin: 0;
+      cursor: pointer;
       user-select: none;
-      -webkit-user-select: none;
     }
 
     section.acc>h2:hover {
-      color: var(--mid)
+      color: var(--mid);
     }
 
+    /* Divider under header */
     section.acc.open>h2 {
-      margin-bottom: 1.05rem
+      padding-bottom: .79rem;
+      margin-bottom: var(--space);
+      border-bottom: 1px solid var(--line);
     }
 
-    /* chevron indicator */
     .chev {
       width: 12px;
       height: 12px;
       flex-shrink: 0;
+      margin: -3px 0 0 .9rem;
       border-right: 1.6px solid currentColor;
       border-bottom: 1.6px solid currentColor;
       transform: rotate(45deg);
       transition: transform .2s ease;
-      margin-left: .8rem;
-      margin-top: -3px;
     }
 
     section.acc.open .chev {
+      margin-top: 2px;
       transform: rotate(225deg);
-      margin-top: 2px
     }
 
-    /* collapsible body */
     .panel-body {
       overflow: hidden;
       max-height: 0;
@@ -323,13 +393,16 @@
       opacity: 1;
     }
 
-    @media (prefers-reduced-motion:reduce) {
-      .panel-body {
-        transition: none
+    @media (prefers-reduced-motion: reduce) {
+
+      *,
+      .panel-body,
+      .chev {
+        transition: none !important;
       }
 
-      .chev {
-        transition: none
+      button:active {
+        transform: none;
       }
     }
   </style>
@@ -337,230 +410,303 @@
 
 <body>
   <header>
-    <h1>Desk Dashboard</h1>
+    <h1>E-INK DESK DASHBOARD</h1>
   </header>
 
-  <section id="info-card">
-    <h2>Info screen</h2>
-    <p class="m">Welcome! Dismiss the info screen below. Your settings are just underneath.</p>
-    <div class="actions"><button onclick="dismiss()">Dismiss info screen</button> <span id="dr" class="m"></span></div>
-  </section>
-
-  <section class="acc">
-    <h2 onclick="toggleAcc(this.parentElement)">Clock<span class="chev"></span></h2>
-    <div class="panel-body">
-      <label><small>Time zone</small><select id="tz"></select></label>
-      <label><input type="checkbox" id="sd"> Show the date on the clock screen</label>
-      <p class="m">Device time: <span id="now" class="readout">&mdash;</span></p>
-      <div class="actions"><button onclick="syncClock()">Save</button> <span id="cr" class="m"></span></div>
+  <!-- Shown until the panel's info screen is dismissed. -->
+  <section id="infoCard">
+    <h2>INFO SCREEN</h2>
+    <p class="m">WELCOME! TO DISMISS THE INFO SCREEN, CLICK THE BUTTON BELOW</p>
+    <div class="actions">
+      <button onclick="dismiss()">DISMISS</button> <span id="dr" class="m"></span>
     </div>
   </section>
 
   <section class="acc">
-    <h2 onclick="toggleAcc(this.parentElement)">Tasks<span class="chev"></span></h2>
+    <h2 onclick="toggleAcc(this.parentElement)">CLOCK<span class="chev"></span></h2>
+    <div class="panel-body">
+      <label><small>TIME ZONE</small><select id="tz"></select></label>
+      <label><input type="checkbox" id="sd"> SHOW THE DATE ON THE CLOCK SCREEN</label>
+      <p class="m">DEVICE TIME: <span id="now" class="readout">&mdash;</span></p>
+      <div class="actions">
+        <button onclick="syncClock()">SAVE</button> <span id="cr" class="m"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="acc">
+    <h2 onclick="toggleAcc(this.parentElement)">TASKS<span class="chev"></span></h2>
     <div class="panel-body">
       <div id="tl"></div>
-      <div class="actions"><button onclick="sendTasks()">Save</button> <span id="tr" class="m"></span></div>
+      <div class="actions">
+        <button onclick="sendTasks()">SAVE</button> <span id="tr" class="m"></span>
+      </div>
     </div>
   </section>
 
   <section class="acc">
-    <h2 onclick="toggleAcc(this.parentElement)">Weather<span class="chev"></span></h2>
+    <h2 onclick="toggleAcc(this.parentElement)">WEATHER<span class="chev"></span></h2>
     <div class="panel-body">
       <div class="search">
-        <input id="wq" type="text" placeholder="Search for a town or city" onkeydown="if(event.key==='Enter')geocode()">
-        <button onclick="geocode()">Search</button>
+        <input id="wq" type="text" placeholder="SEARCH FOR A TOWN OR CITY" onkeydown="if(event.key==='Enter')geocode()">
+        <button onclick="geocode()">SEARCH</button>
       </div>
-      <label id="lwl" style="display:none"><small>Matches</small><select id="wl"
-          onchange="pickPlace()"></select></label>
-      <p class="m">Location: <b id="wn">not set</b><span id="wa"></span></p>
-      <div class="actions"><button onclick="sendWx()">Save</button> <span id="wr" class="m"></span></div>
+      <label id="lwl" style="display:none">
+        <small>MATCHES</small><select id="wl" onchange="pickPlace()"></select>
+      </label>
+      <p class="m">LOCATION: <b id="wn">NOT SET</b></p>
+      <div class="actions">
+        <button onclick="sendWx()">SAVE</button> <span id="wr" class="m"></span>
+      </div>
     </div>
   </section>
 
   <section class="acc">
-    <h2 onclick="toggleAcc(this.parentElement)">Markets<span class="chev"></span></h2>
+    <h2 onclick="toggleAcc(this.parentElement)">MARKETS<span class="chev"></span></h2>
     <div class="panel-body">
-      <p class="m">Shows <b id="mklabel">SPY</b> (S&amp;P 500 ETF). Needs a free
-        <a href="https://twelvedata.com" target="_blank" rel="noopener">Twelve Data</a> API key.
+      <p class="m">SHOWS <b id="mklabel">SPY</b> (S&amp;P 500 ETF).<br>
+        NEEDS A FREE <a href="https://twelvedata.com" target="_blank" rel="noopener">TWELVE DATA</a> API KEY.
       </p>
-      <label><input type="password" id="mk" placeholder="Paste your API key" autocomplete="off"></label>
-      <p class="m">Status: <b id="mkst">not set</b></p>
-      <div class="actions"><button onclick="sendMarket()">Save</button> <span id="mkr" class="m"></span></div>
+      <label><input type="password" id="mk" placeholder="PASTE YOUR API KEY" autocomplete="off"></label>
+      <p class="m">STATUS: <b id="mkst">NOT SET</b></p>
+      <div class="actions">
+        <button onclick="sendMarket()">SAVE</button> <span id="mkr" class="m"></span>
+      </div>
     </div>
   </section>
 
   <section class="acc">
-    <h2 onclick="toggleAcc(this.parentElement)">Display<span class="chev"></span></h2>
+    <h2 onclick="toggleAcc(this.parentElement)">DISPLAY<span class="chev"></span></h2>
     <div class="panel-body">
-      <label><input type="radio" name="dm" value="0" id="dm0" onchange="modeChanged()"> Cycle through screens</label>
-      <label><input type="radio" name="dm" value="1" id="dm1" onchange="modeChanged()"> Show one screen only</label>
-      <label id="lss"><small>Screen</small><select id="ss"></select></label>
-      <label id="ldw"><small>Time between screen changes</small><select id="dw"></select></label>
-      <div class="actions"><button onclick="syncDisplay()">Save</button> <span id="sr" class="m"></span></div>
+      <label><input type="radio" name="dm" value="0" id="dm0" onchange="modeChanged()"> CYCLE THROUGH SCREENS</label>
+      <label><input type="radio" name="dm" value="1" id="dm1" onchange="modeChanged()"> SHOW ONE SCREEN ONLY</label>
+      <label id="lss"><small>SCREEN</small><select id="ss"></select></label>
+      <label id="ldw"><small>TIME BETWEEN SCREEN CHANGES</small><select id="dw"></select></label>
+      <div class="actions">
+        <button onclick="syncDisplay()">SAVE</button> <span id="sr" class="m"></span>
+      </div>
     </div>
   </section>
 
   <script>
     const esc = s => s.replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/</g, '&lt;');
     const deaccent = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const get = (url) => fetch(url).then(r => r.json());
 
-    // accordion: open one panel, close the others -----------------------
+    // Shows the result of a save next to its button.
+    function status(el, ok, okText = 'SAVED', failText = 'FAILED') {
+      el.textContent = ok ? okText : failText;
+      el.className = ok ? 'm ok' : 'm';
+    }
+
+    // Open one panel and close the others.
     function toggleAcc(section) {
       const wasOpen = section.classList.contains('open');
       document.querySelectorAll('section.acc.open').forEach(s => s.classList.remove('open'));
       if (!wasOpen) section.classList.add('open');
     }
 
-    // clock ------------------------------------------------------------
+    // CLOCK ------------------------------------------------------------
     async function syncClock() {
       const o = tz.selectedOptions[0];
       const q = new URLSearchParams({ tz: tz.value, label: o.dataset.l, date: sd.checked ? 1 : 0 });
       const r = await fetch('/api/clock?' + q, { method: 'POST' });
-      cr.textContent = r.ok ? 'saved' : 'failed';
-      cr.className = r.ok ? 'm ok' : 'm';
+      status(cr, r.ok);
       setTimeout(load, 600);
     }
 
-    // tasks -------------------------------------------------------------
+    // TASKS ------------------------------------------------------------
     let TASKS = [];
+
     function drawTasks() {
       tl.innerHTML = TASKS.map((t, i) =>
         `<div class="row">
            <input type="checkbox" ${t.done ? 'checked' : ''} onchange="TASKS[${i}].done=this.checked;drawTasks()">
-           <input type="text" maxlength="47" value="${esc(t.title)}" placeholder="Task ${i + 1}" ${t.done ? 'disabled' : ''} oninput="TASKS[${i}].title=this.value">
+           <input type="text" maxlength="47" value="${esc(t.title)}" placeholder="..." ${t.done ? 'disabled' : ''} oninput="TASKS[${i}].title=this.value">
            <button class="del" onclick="delTask(${i})" title="Delete">&times;</button>
          </div>`).join('');
     }
-    function delTask(i) { TASKS.splice(i, 1); TASKS.push({ title: '', done: false }); drawTasks(); }
+
+    // Removing a task shifts the rest up and leaves an empty slot at the end.
+    function delTask(i) {
+      TASKS.splice(i, 1);
+      TASKS.push({ title: '', done: false });
+      drawTasks();
+    }
+
     async function loadTasks() {
-      TASKS = await (await fetch('/api/tasks')).json();
+      TASKS = await get('/api/tasks');
       while (TASKS.length < 5) TASKS.push({ title: '', done: false });
       drawTasks();
     }
+
     async function sendTasks() {
       const q = new URLSearchParams();
-      TASKS.forEach((t, i) => { q.append('t' + i, t.title); q.append('d' + i, t.done ? 1 : 0); });
-      const r = await fetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: q.toString() });
-      tr.textContent = r.ok ? 'saved' : 'failed';
-      tr.className = r.ok ? 'm ok' : 'm';
+      TASKS.forEach((t, i) => {
+        q.append('t' + i, t.title);
+        q.append('d' + i, t.done ? 1 : 0);
+      });
+      const r = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: q.toString()
+      });
+      status(tr, r.ok);
       setTimeout(loadTasks, 600);
     }
 
-    // weather (geocoding happens in the browser) ------------------------
+    // WEATHER ----------------------------------------------------------
+    // The city lookup happens here rather than on the device, which only ever
+    // stores the coordinates and the name.
     let WX = { lat: 0, lon: 0, name: '' };
     let GEO = [];
+
     function showWx() {
-      if (!WX.name) { wn.textContent = 'not set'; wa.textContent = ''; return; }
-      wn.textContent = `${WX.name} (${(+WX.lat).toFixed(2)}, ${(+WX.lon).toFixed(2)})`;
-      const orig = GEO[wl.value] ? GEO[wl.value].name : '';
-      wa.textContent = (orig && orig !== WX.name) ? '' : '';
+      wn.textContent = WX.name
+        ? `${WX.name} (${(+WX.lat).toFixed(2)}, ${(+WX.lon).toFixed(2)})`
+        : 'NOT SET';
     }
+
     async function geocode() {
       const q = wq.value.trim();
       if (!q) return;
-      wr.textContent = 'searching...'; wr.className = 'm';
+
+      wr.textContent = 'SEARCHING...';
+      wr.className = 'm';
+
       try {
         const u = 'https://geocoding-api.open-meteo.com/v1/search?count=8&language=en&format=json&name=' + encodeURIComponent(q);
-        GEO = ((await (await fetch(u)).json()).results) || [];
-      } catch (e) { GEO = []; }
-      if (!GEO.length) { wr.textContent = 'no matches'; lwl.style.display = 'none'; return; }
+        GEO = (await get(u)).results || [];
+      } catch (e) {
+        GEO = [];
+      }
+
+      if (!GEO.length) {
+        wr.textContent = 'NO MATCHES';
+        lwl.style.display = 'none';
+        return;
+      }
+
       wl.innerHTML = GEO.map((p, i) =>
         `<option value="${i}">${esc(p.name)}${p.admin1 ? ', ' + esc(p.admin1) : ''}, ${esc(p.country || '')}</option>`).join('');
-      lwl.style.display = ''; wr.textContent = GEO.length + ' match' + (GEO.length > 1 ? 'es' : '');
+      lwl.style.display = '';
+      wr.textContent = GEO.length + ' MATCH' + (GEO.length > 1 ? 'ES' : '');
       pickPlace();
     }
+
     function pickPlace() {
       const p = GEO[wl.value];
       if (!p) return;
-      WX.lat = p.latitude; WX.lon = p.longitude; WX.name = deaccent(p.name);
+      // Accents are stripped because the panel font is ASCII only.
+      WX = { lat: p.latitude, lon: p.longitude, name: deaccent(p.name) };
       showWx();
     }
+
     async function loadWx() {
-      const w = await (await fetch('/api/weather')).json();
+      const w = await get('/api/weather');
       WX = { lat: w.lat, lon: w.lon, name: w.name };
       showWx();
     }
+
     async function sendWx() {
-      if (!WX.name) { wr.textContent = 'search for a location first'; wr.className = 'm'; return; }
+      if (!WX.name) {
+        wr.textContent = 'SEARCH FOR A TOWN OR CITY';
+        wr.className = 'm';
+        return;
+      }
       const q = new URLSearchParams({ lat: WX.lat, lon: WX.lon, name: WX.name });
       const r = await fetch('/api/weather?' + q, { method: 'POST' });
-      wr.textContent = r.ok ? 'saved - fetching weather' : 'failed';
-      wr.className = r.ok ? 'm ok' : 'm';
+      status(wr, r.ok, 'SAVED - FETCHING WEATHER');
       setTimeout(loadWx, 800);
     }
 
-    // display -------------------------------------------------------
-    function modeChanged() {
-      const stat = dm1.checked;
-      ss.disabled = !stat; lss.toggleAttribute('disabled', !stat);
-      dw.disabled = stat; ldw.toggleAttribute('disabled', stat);
-    }
-    async function syncDisplay() {
-      const q = new URLSearchParams({ mode: dm1.checked ? 1 : 0, screen: ss.value, dwell: dw.value });
-      const r = await fetch('/api/display?' + q, { method: 'POST' });
-      sr.textContent = r.ok ? 'saved' : 'failed';
-      sr.className = r.ok ? 'm ok' : 'm';
-      setTimeout(load, 600);
-    }
-
-    // markets -------------------------------------------------------
+    // MARKETS ----------------------------------------------------------
     async function loadMarket() {
-      const m = await (await fetch('/api/markets')).json();
+      const m = await get('/api/markets');
       mklabel.textContent = m.label;
-      mkst.textContent = m.configured ? 'key set' : 'not set';
+      mkst.textContent = m.configured ? 'KEY SET' : 'NOT SET';
       mkst.className = m.configured ? 'ok' : '';
     }
+
     async function sendMarket() {
       const key = mk.value.trim();
-      if (!key) { mkr.textContent = 'paste a key first'; mkr.className = 'm'; return; }
+      if (!key) {
+        mkr.textContent = 'PASTE A KEY FIRST';
+        mkr.className = 'm';
+        return;
+      }
       const r = await fetch('/api/markets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ key }).toString()
       });
-      mkr.textContent = r.ok ? 'saved - fetching price' : 'rejected (check the key)';
-      mkr.className = r.ok ? 'm ok' : 'm';
+      status(mkr, r.ok, 'SAVED - FETCHING PRICE', 'REJECTED, CHECK THE KEY');
       mk.value = '';
       setTimeout(loadMarket, 800);
     }
 
-    // info ------------------------------------------------------------
-    async function dismiss() {
-      const r = await fetch('/api/dismiss', { method: 'POST' });
-      dr.textContent = r.ok ? 'dismissed' : 'failed';
-      if (r.ok) document.getElementById('info-card').style.display = 'none';
-      dr.className = r.ok ? 'm ok' : 'm';
+    // DISPLAY ----------------------------------------------------------
+    // Only one of the screen picker and the rotation timer applies at a time.
+    function modeChanged() {
+      const pinned = dm1.checked;
+      ss.disabled = !pinned;
+      dw.disabled = pinned;
+      lss.toggleAttribute('disabled', !pinned);
+      ldw.toggleAttribute('disabled', pinned);
     }
 
-    // initial load -----------------------------------------------------
+    async function syncDisplay() {
+      const q = new URLSearchParams({ mode: dm1.checked ? 1 : 0, screen: ss.value, dwell: dw.value });
+      const r = await fetch('/api/display?' + q, { method: 'POST' });
+      status(sr, r.ok);
+      setTimeout(load, 600);
+    }
+
+    // INFO -------------------------------------------------------------
+    async function dismiss() {
+      const r = await fetch('/api/dismiss', { method: 'POST' });
+      status(dr, r.ok, 'DISMISSED');
+      if (r.ok) infoCard.style.display = 'none';
+    }
+
+    // STARTUP ----------------------------------------------------------
     async function load() {
-      const zs = await (await fetch('/api/timezones')).json();
-      const c = await (await fetch('/api/clock')).json();
-      const sc = await (await fetch('/api/screens')).json();
-      const d = await (await fetch('/api/display')).json();
+      const [zs, c, sc, d] = await Promise.all([
+        get('/api/timezones'),
+        get('/api/clock'),
+        get('/api/screens'),
+        get('/api/display')
+      ]);
 
       tz.innerHTML = zs.map(z => `<option value="${z.posix}" data-l="${z.label}">${z.label}</option>`).join('');
-      tz.value = c.tz; sd.checked = c.showDate;
+      tz.value = c.tz;
+      sd.checked = c.showDate;
       now.textContent = c.now;
-      document.getElementById('info-card').style.display = c.infoSeen ? 'none' : '';
+
+      // The info card only shows until the panel's info screen is dismissed.
+      infoCard.style.display = c.infoSeen ? 'none' : '';
 
       ss.innerHTML = sc.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-      let o = '';
-      for (let m = d.min; m <= d.max; m += d.step) o += `<option value="${m}">${m} minutes</option>`;
-      dw.innerHTML = o;
+      ss.value = d.screen;
 
-      ss.value = d.screen; dw.value = d.dwell;
-      (d.mode == 1 ? dm1 : dm0).checked = true; modeChanged();
+      let opts = '';
+      for (let m = d.min; m <= d.max; m += d.step) opts += `<option value="${m}">${m} MINUTES</option>`;
+      dw.innerHTML = opts;
+      dw.value = d.dwell;
 
-      await loadTasks();
-      await loadWx();
-      await loadMarket();
+      (d.mode == 1 ? dm1 : dm0).checked = true;
+      modeChanged();
+
+      await Promise.all([loadTasks(), loadWx(), loadMarket()]);
     }
 
     load();
+
+    // Keep the clock readout ticking.
     setInterval(async () => {
-      try { const c = await (await fetch('/api/clock')).json(); now.textContent = c.now; } catch (e) { }
+      try {
+        now.textContent = (await get('/api/clock')).now;
+      } catch (e) { }
     }, 5000);
   </script>
 </body>

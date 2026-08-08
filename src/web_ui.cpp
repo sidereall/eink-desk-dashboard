@@ -32,7 +32,9 @@ static void handleTimezones() {
     if (i)
       out += ',';
     out += "{\"label\":\"";
-    out += TIMEZONES[i].label;
+    // Uppercased for the web page.
+    for (const char *p = TIMEZONES[i].label; *p; p++)
+      out += (char)toupper((unsigned char)*p);
     out += "\",\"posix\":\"";
     out += TIMEZONES[i].posix;
     out += "\"}";
@@ -316,10 +318,26 @@ static void handleRoot() {
   f.close();
 }
 
+// Font served from the filesystem like the page itself.
+static void handleFont() {
+  if (!LittleFS.exists("/Micro5.ttf")) {
+    return;
+  }
+
+  File f = LittleFS.open("/Micro5.ttf", "r");
+  if (!f) {
+    return;
+  }
+
+  server.streamFile(f, "font/ttf");
+  f.close();
+}
+
 void webBegin() {
   if (!s_handlersRegistered) {
     // serveStatic 404s here, so the page is served by handleRoot instead.
     server.on("/", HTTP_GET, handleRoot);
+    server.on("/font", HTTP_GET, handleFont); // WebServer can't match /Micro5.ttf directly.
     server.on("/api/timezones", HTTP_GET, handleTimezones);
     server.on("/api/screens", HTTP_GET, handleScreens);
     server.on("/api/clock", HTTP_GET, handleClockGet);

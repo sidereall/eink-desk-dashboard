@@ -467,15 +467,15 @@ void drawInfo(Adafruit_GFX &g, const AppState &s) {
 const char *screenName(ScreenId id) {
   switch (id) {
   case SCREEN_CLOCK:
-    return "Clock";
+    return "CLOCK";
   case SCREEN_TASKS:
-    return "Tasks";
+    return "TASKS";
   case SCREEN_WEATHER:
-    return "Weather";
+    return "WEATHER";
   case SCREEN_MARKETS:
-    return "Markets";
+    return "MARKETS";
   case SCREEN_INFO:
-    return "Info";
+    return "INFO";
   default:
     return "?";
   }
