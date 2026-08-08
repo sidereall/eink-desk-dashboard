@@ -50,8 +50,8 @@ static void applyRadioConfig() {
 
   WiFi.setHostname(DEVICE_HOSTNAME);
 
-  // Sleep saves power but adds latency to every web request.
-  WiFi.setSleep(false);
+  // Modem sleep. Measured 90mA -> 50mA with only slight added latency
+  WiFi.setSleep(true);
 }
 
 void wifiBegin() {
