@@ -228,12 +228,13 @@ static void handleClockGet() {
 
 // Current settings plus the allowed dwell range, which builds the dropdown.
 static void handleDisplayGet() {
-  char body[160];
+  char body[200];
   snprintf(body, sizeof(body),
            "{\"mode\":%u,\"screen\":%u,\"dwell\":%u,"
-           "\"min\":%u,\"max\":%u,\"step\":%u}",
+           "\"min\":%u,\"max\":%u,\"step\":%u,\"dark\":%s}",
            (unsigned)settingsDisplayMode(), (unsigned)settingsStaticScreen(), (unsigned)settingsDwellMinutes(),
-           (unsigned)DWELL_MIN_MINUTES, (unsigned)DWELL_MAX_MINUTES, (unsigned)DWELL_STEP_MINUTES);
+           (unsigned)DWELL_MIN_MINUTES, (unsigned)DWELL_MAX_MINUTES, (unsigned)DWELL_STEP_MINUTES,
+           settingsDarkMode() ? "true" : "false");
   server.send(200, "application/json", body);
 }
 
@@ -297,6 +298,7 @@ static void handleDisplayPost() {
   settingsSetDisplayMode((uint8_t)mode);
   settingsSetStaticScreen((uint8_t)screen);
   settingsSetDwellMinutes((uint8_t)dwell);
+  settingsSetDarkMode(server.hasArg("dark") && server.arg("dark") == "1");
 
   s_syncRequested = true;
   server.send(200, "text/plain", "ok");

@@ -35,6 +35,9 @@ void settingsSetStaticScreen(uint8_t screen);
 uint8_t settingsDwellMinutes();
 void settingsSetDwellMinutes(uint8_t minutes);
 
+bool settingsDarkMode();
+void settingsSetDarkMode(bool dark);
+
 // WEATHER
 // The browser does the city lookup, the device just stores the result.
 bool settingsWeatherConfigured();

@@ -480,6 +480,7 @@
     <div class="panel-body">
       <label><input type="radio" name="dm" value="0" id="dm0" onchange="modeChanged()"> CYCLE THROUGH SCREENS</label>
       <label><input type="radio" name="dm" value="1" id="dm1" onchange="modeChanged()"> SHOW ONE SCREEN ONLY</label>
+      <label><input type="checkbox" id="dk"> DARK MODE</label>
       <label id="lss"><small>SCREEN</small><select id="ss"></select></label>
       <label id="ldw"><small>TIME BETWEEN SCREEN CHANGES</small><select id="dw"></select></label>
       <div class="actions">
@@ -656,7 +657,7 @@
     }
 
     async function syncDisplay() {
-      const q = new URLSearchParams({ mode: dm1.checked ? 1 : 0, screen: ss.value, dwell: dw.value });
+      const q = new URLSearchParams({ mode: dm1.checked ? 1 : 0, screen: ss.value, dwell: dw.value, dark: dk.checked ? 1 : 0 });
       const r = await fetch('/api/display?' + q, { method: 'POST' });
       status(sr, r.ok);
       setTimeout(load, 600);
@@ -695,6 +696,7 @@
       dw.value = d.dwell;
 
       (d.mode == 1 ? dm1 : dm0).checked = true;
+      dk.checked = d.dark;
       modeChanged();
 
       await Promise.all([loadTasks(), loadWx(), loadMarket()]);

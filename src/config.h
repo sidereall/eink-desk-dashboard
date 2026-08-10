@@ -25,6 +25,10 @@ constexpr int16_t SCREEN_H = 300;
 constexpr uint16_t COL_BLACK = 0x0000;
 constexpr uint16_t COL_WHITE = 0xFFFF;
 
+// Foreground and background for the current theme, set once per frame.
+extern uint16_t COL_FG;
+extern uint16_t COL_BG;
+
 // REFRESH POLICY ----------------------------------------------------
 // Number of partial refreshes, before a full screen refresh
 constexpr uint8_t MAX_PARTIALS_BEFORE_FULL = 10;

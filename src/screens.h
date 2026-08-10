@@ -101,6 +101,9 @@ struct AppState {
 
   // MARKETS (Twelve Data; markets.cpp) ------------------------------------------------------
   MarketData markets;
+
+  // DISPLAY (main.cpp) -------------------------------------------------------
+  bool darkMode; // inverts the panel
 };
 
 struct Rect {

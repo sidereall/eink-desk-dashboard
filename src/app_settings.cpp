@@ -21,6 +21,7 @@ static const char *KEY_WX_LAT = "wx_lat";
 static const char *KEY_WX_LON = "wx_lon";
 static const char *KEY_WX_NAME = "wx_name";
 static const char *KEY_MKT_KEY = "mkt_key";
+static const char *KEY_DARK_MODE = "dark_mode";
 
 void settingsBegin() { prefs.begin(NS, /*readOnly=*/false); }
 
@@ -69,6 +70,10 @@ void settingsSetStaticScreen(uint8_t screen) { prefs.putUChar(KEY_DISP_SCRN, scr
 uint8_t settingsDwellMinutes() { return prefs.getUChar(KEY_DWELL_MIN, DEFAULT_DWELL_MINUTES); }
 
 void settingsSetDwellMinutes(uint8_t minutes) { prefs.putUChar(KEY_DWELL_MIN, minutes); }
+
+bool settingsDarkMode() { return prefs.getBool(KEY_DARK_MODE, false); }
+
+void settingsSetDarkMode(bool dark) { prefs.putBool(KEY_DARK_MODE, dark); }
 
 // WEATHER ----------------------------------------------------------------
 bool settingsWeatherConfigured() { return prefs.getString(KEY_WX_NAME, "").length() > 0; }

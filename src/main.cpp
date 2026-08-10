@@ -144,6 +144,7 @@ static void reloadDisplaySettings() {
   g_displayMode = settingsDisplayMode();
   g_staticScreen = (ScreenId)settingsStaticScreen();
   g_dwellMs = (uint32_t)settingsDwellMinutes() * 60000UL;
+  g_state.darkMode = settingsDarkMode();
 
   if (g_displayMode == DISPLAY_STATIC)
     g_screen = g_staticScreen;

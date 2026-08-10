@@ -7,12 +7,16 @@
 #include <stdio.h>
 #include <string.h>
 
+// Set by drawScreen() before anything draws. Light theme by default.
+uint16_t COL_FG = COL_BLACK;
+uint16_t COL_BG = COL_WHITE;
+
 // SHARED HELPERS -------------------------------------------------------------------
 
 // Black rectangle with a white rounded one on top, leaving black corner notches.
 static void drawFrame(Adafruit_GFX &g) {
-  g.fillRect(0, 0, SCREEN_W, SCREEN_H, COL_BLACK);
-  g.fillRoundRect(0, 0, SCREEN_W, SCREEN_H, FRAME_RADIUS, COL_WHITE);
+  g.fillRect(0, 0, SCREEN_W, SCREEN_H, COL_FG);
+  g.fillRoundRect(0, 0, SCREEN_W, SCREEN_H, FRAME_RADIUS, COL_BG);
 }
 
 static void printAt(Adafruit_GFX &g, const char *s, int16_t x, int16_t y) {
@@ -22,7 +26,7 @@ static void printAt(Adafruit_GFX &g, const char *s, int16_t x, int16_t y) {
 
 // Hollow minute numbers
 static void printOutlined(Adafruit_GFX &g, const char *txt, int16_t x, int16_t y) {
-  g.setTextColor(COL_BLACK);
+  g.setTextColor(COL_FG);
   for (int8_t dx = -CLOCK_OUTLINE_PX; dx <= CLOCK_OUTLINE_PX; dx++) {
     for (int8_t dy = -CLOCK_OUTLINE_PX; dy <= CLOCK_OUTLINE_PX; dy++) {
       if (dx == 0 && dy == 0)
@@ -31,7 +35,7 @@ static void printOutlined(Adafruit_GFX &g, const char *txt, int16_t x, int16_t y
       g.print(txt);
     }
   }
-  g.setTextColor(COL_WHITE);
+  g.setTextColor(COL_BG);
   g.setCursor(x, y);
   g.print(txt);
 }
@@ -84,12 +88,12 @@ static void printCentered(Adafruit_GFX &g, const char *s, int16_t y) {
 static void drawWifi(Adafruit_GFX &g, int16_t x, int16_t y, bool connected) {
   if (!connected)
     return;
-  g.drawBitmap(x, y, icon_wifi, ICON_WIFI_W, ICON_WIFI_H, COL_BLACK);
+  g.drawBitmap(x, y, icon_wifi, ICON_WIFI_W, ICON_WIFI_H, COL_FG, COL_BG);
 }
 
 // Title, subtitle, rule and Wi-Fi icon. Shared by TASKS / WEATHER / MARKETS.
 static void drawHeader(Adafruit_GFX &g, const char *title, const char *subtitle, bool wifiConnected) {
-  g.setTextColor(COL_BLACK);
+  g.setTextColor(COL_FG);
 
   g.setTextSize(HDR_TITLE_SIZE);
   printAt(g, title, HDR_TITLE_X, HDR_TITLE_Y);
@@ -97,7 +101,7 @@ static void drawHeader(Adafruit_GFX &g, const char *title, const char *subtitle,
   g.setTextSize(HDR_SUB_SIZE);
   printTruncated(g, subtitle, HDR_SUB_X, HDR_SUB_Y, HDR_SUB_MAX_W);
 
-  g.drawLine(HDR_RULE_X0, HDR_RULE_Y, HDR_RULE_X1, HDR_RULE_Y, COL_BLACK);
+  g.drawLine(HDR_RULE_X0, HDR_RULE_Y, HDR_RULE_X1, HDR_RULE_Y, COL_FG);
 
   drawWifi(g, HDR_WIFI_X, HDR_WIFI_Y, wifiConnected);
 }
@@ -108,7 +112,7 @@ void drawClock(Adafruit_GFX &g, const AppState &s) {
 
   g.setFont(&Org_01);
   g.setTextWrap(false);
-  g.setTextColor(COL_BLACK);
+  g.setTextColor(COL_FG);
 
   // No RTC, so a cold boot doesn't know the time until NTP is fetched.
   if (!s.timeSynced) {
@@ -139,7 +143,7 @@ void drawClock(Adafruit_GFX &g, const AppState &s) {
 
   // Hollow minutes, solid hours
   printOutlined(g, mm, left + hourW + CLOCK_DIGIT_GAP - minOff, CLOCK_DIGIT_Y);
-  g.setTextColor(COL_BLACK);
+  g.setTextColor(COL_FG);
   printAt(g, hh, left - hourOff, CLOCK_DIGIT_Y);
 
   // Centred, the date's length changes with the day and month
@@ -168,7 +172,7 @@ void drawTasks(Adafruit_GFX &g, const AppState &s) {
   // Counts tasks entered, not slots: "1 of 3 done", not "1 of 5 done".
   char counter[16];
   snprintf(counter, sizeof(counter), "%u of %u done", (unsigned)done, (unsigned)s.taskCount);
-  g.setTextColor(COL_BLACK);
+  g.setTextColor(COL_FG);
   g.setTextSize(HDR_SUB_SIZE);
   printAt(g, counter, TASK_COUNT_X, TASK_COUNT_Y);
 
@@ -176,21 +180,21 @@ void drawTasks(Adafruit_GFX &g, const AppState &s) {
   for (uint8_t i = 0; i < MAX_TASKS; i++) {
     const int16_t top = TASK_BOX_Y0 + i * TASK_ROW_PITCH;
 
-    g.drawRoundRect(TASK_BOX_X, top, TASK_BOX_W, TASK_BOX_H, TASK_BOX_RADIUS, COL_BLACK);
+    g.drawRoundRect(TASK_BOX_X, top, TASK_BOX_W, TASK_BOX_H, TASK_BOX_RADIUS, COL_FG);
 
     const bool filled = (i < s.taskCount) && s.tasks[i].done;
     const int16_t cy = top + TASK_CHECK_DY;
 
     if (filled)
-      g.fillCircle(TASK_CHECK_CX, cy, TASK_CHECK_R, COL_BLACK);
+      g.fillCircle(TASK_CHECK_CX, cy, TASK_CHECK_R, COL_FG);
     else
-      g.drawCircle(TASK_CHECK_CX, cy, TASK_CHECK_R, COL_BLACK);
+      g.drawCircle(TASK_CHECK_CX, cy, TASK_CHECK_R, COL_FG);
 
     if (i >= s.taskCount || s.tasks[i].title[0] == '\0')
       continue;
 
     g.setTextSize(TASK_TEXT_SIZE);
-    g.setTextColor(COL_BLACK);
+    g.setTextColor(COL_FG);
 
     const int16_t baseline = top + TASK_TEXT_DY;
     const int16_t drawnW = printTruncated(g, s.tasks[i].title, TASK_TEXT_X, baseline, TASK_TEXT_MAX_W);
@@ -198,7 +202,7 @@ void drawTasks(Adafruit_GFX &g, const AppState &s) {
     // Strike only as far as the text actually reaches
     if (s.tasks[i].done) {
       const int16_t strikeY = baseline - TASK_STRIKE_OFFSET;
-      g.fillRect(TASK_TEXT_X, strikeY, drawnW, TASK_STRIKE_THICK, COL_BLACK);
+      g.fillRect(TASK_TEXT_X, strikeY, drawnW, TASK_STRIKE_THICK, COL_FG);
     }
   }
 }
@@ -253,7 +257,7 @@ void drawWeather(Adafruit_GFX &g, const AppState &s) {
 
   const char *sub = w.configured ? w.location : "NO LOCATION SET";
   drawHeader(g, "WEATHER", sub, s.wifiConnected);
-  g.setTextColor(COL_BLACK);
+  g.setTextColor(COL_FG);
 
   // Nothing to draw yet
   if (!w.configured) {
@@ -283,39 +287,39 @@ void drawWeather(Adafruit_GFX &g, const AppState &s) {
   printAt(g, buf, WX_TEMP_X, WX_TEMP_Y);
 
   // Degree celsius symbol
-  g.drawBitmap(WX_DEG_LARGE_X, WX_DEG_LARGE_Y, icon_degree_large, ICON_DEG_LARGE_W, ICON_DEG_LARGE_H, COL_BLACK);
+  g.drawBitmap(WX_DEG_LARGE_X, WX_DEG_LARGE_Y, icon_degree_large, ICON_DEG_LARGE_W, ICON_DEG_LARGE_H, COL_FG, COL_BG);
 
   g.setTextSize(HDR_SUB_SIZE);
   printAt(g, w.status, WX_STATUS_X, WX_STATUS_Y);
 
   snprintf(buf, sizeof(buf), "H: %d", (int)w.tempHigh);
   printAt(g, buf, WX_HIGH_X, WX_HL_Y);
-  g.drawBitmap(WX_HIGH_DEG_X, WX_HL_DEG_Y, icon_degree_small, ICON_DEG_SMALL_W, ICON_DEG_SMALL_H, COL_BLACK);
+  g.drawBitmap(WX_HIGH_DEG_X, WX_HL_DEG_Y, icon_degree_small, ICON_DEG_SMALL_W, ICON_DEG_SMALL_H, COL_FG, COL_BG);
 
   snprintf(buf, sizeof(buf), "L: %d", (int)w.tempLow);
   printAt(g, buf, WX_LOW_X, WX_HL_Y);
-  g.drawBitmap(WX_LOW_DEG_X, WX_HL_DEG_Y, icon_degree_small, ICON_DEG_SMALL_W, ICON_DEG_SMALL_H, COL_BLACK);
+  g.drawBitmap(WX_LOW_DEG_X, WX_HL_DEG_Y, icon_degree_small, ICON_DEG_SMALL_W, ICON_DEG_SMALL_H, COL_FG, COL_BG);
 
-  g.drawBitmap(WX_BIG_ICON_X, WX_BIG_ICON_Y, bigIcon((WxIcon)w.iconNow), ICON_BIG_W, ICON_BIG_H, COL_BLACK);
+  g.drawBitmap(WX_BIG_ICON_X, WX_BIG_ICON_Y, bigIcon((WxIcon)w.iconNow), ICON_BIG_W, ICON_BIG_H, COL_FG, COL_BG);
 
   // Four forecast cards, same offsets each, only the x moves
   for (uint8_t i = 0; i < WX_CARD_COUNT; i++) {
     const int16_t cx = WX_CARD_X0 + i * WX_CARD_PITCH;
     const int16_t cy = WX_CARD_Y;
 
-    g.drawRoundRect(cx, cy, WX_CARD_W, WX_CARD_H, WX_CARD_R, COL_BLACK);
+    g.drawRoundRect(cx, cy, WX_CARD_W, WX_CARD_H, WX_CARD_R, COL_FG);
 
     g.setTextSize(3);
     printAt(g, w.days[i].name, cx + WX_CARD_DAY_DX, cy + WX_CARD_DAY_DY);
 
     g.drawBitmap(cx + WX_CARD_ICON_DX, cy + WX_CARD_ICON_DY, smallIcon((WxIcon)w.days[i].icon), ICON_SMALL_W,
-                 ICON_SMALL_H, COL_BLACK);
+                 ICON_SMALL_H, COL_FG, COL_BG);
 
     g.setTextSize(2);
     snprintf(buf, sizeof(buf), "%d", (int)w.days[i].temp);
     printAt(g, buf, cx + WX_CARD_TEMP_DX, cy + WX_CARD_TEMP_DY);
     g.drawBitmap(cx + WX_CARD_DEG_DX, cy + WX_CARD_DEG_DY, icon_degree_small, ICON_DEG_SMALL_W, ICON_DEG_SMALL_H,
-                 COL_BLACK);
+                 COL_FG, COL_BG);
   }
 }
 
@@ -333,7 +337,7 @@ void drawMarkets(Adafruit_GFX &g, const AppState &s) {
                       : m.marketOpen ? "NYSE OPEN"
                                      : "NYSE CLOSED";
   drawHeader(g, "MARKETS", state, s.wifiConnected);
-  g.setTextColor(COL_BLACK);
+  g.setTextColor(COL_FG);
 
   // Nothing to draw yet
   if (!m.configured) {
@@ -356,7 +360,7 @@ void drawMarkets(Adafruit_GFX &g, const AppState &s) {
   printAt(g, updated, MK_UPDATED_X, MK_UPDATED_Y);
 
   // Quote box: name, price, change
-  g.drawRoundRect(MK_BOX_X, MK_BOX_Y, MK_BOX_W, MK_BOX_H, MK_BOX_R, COL_BLACK);
+  g.drawRoundRect(MK_BOX_X, MK_BOX_Y, MK_BOX_W, MK_BOX_H, MK_BOX_R, COL_FG);
 
   g.setTextSize(MK_NAME_SIZE);
   printAt(g, m.name, MK_NAME_X, MK_NAME_Y);
@@ -365,18 +369,18 @@ void drawMarkets(Adafruit_GFX &g, const AppState &s) {
   if (m.rising) {
     // Market up since last close: hollow triangle up
     g.drawTriangle(MK_TRI_CX, MK_TRI_TOP_Y, MK_TRI_CX + MK_TRI_HALF_W, MK_TRI_BOT_Y, MK_TRI_CX - MK_TRI_HALF_W,
-                   MK_TRI_BOT_Y, COL_BLACK);
+                   MK_TRI_BOT_Y, COL_FG);
   } else {
     // Market down since last close: filled triangle down
     g.fillTriangle(MK_TRI_CX, MK_TRI_BOT_Y, MK_TRI_CX + MK_TRI_HALF_W, MK_TRI_TOP_Y, MK_TRI_CX - MK_TRI_HALF_W,
-                   MK_TRI_TOP_Y, COL_BLACK);
+                   MK_TRI_TOP_Y, COL_FG);
   }
 
   g.setTextSize(HDR_SUB_SIZE);
   printAt(g, m.changePct, MK_PCT_X, MK_PCT_Y);
 
   // Chart box
-  g.drawRoundRect(MK_CHART_X, MK_CHART_Y, MK_CHART_W, MK_CHART_H, MK_CHART_R, COL_BLACK);
+  g.drawRoundRect(MK_CHART_X, MK_CHART_Y, MK_CHART_W, MK_CHART_H, MK_CHART_R, COL_FG);
 
   // Need at least two points to draw a line, and a price range to spread it over.
   const float range = m.sparkMax - m.sparkMin;
@@ -401,13 +405,13 @@ void drawMarkets(Adafruit_GFX &g, const AppState &s) {
   int16_t prevX = px(0), prevY = py(m.spark[0]);
   for (uint8_t i = 1; i < m.sparkCount; i++) {
     const int16_t cx = px(i), cy = py(m.spark[i]);
-    g.drawLine(prevX, prevY, cx, cy, COL_BLACK);
+    g.drawLine(prevX, prevY, cx, cy, COL_FG);
     prevX = cx;
     prevY = cy;
   }
 
   // Dot on the newest point
-  g.fillCircle(prevX, prevY, 2, COL_BLACK);
+  g.fillCircle(prevX, prevY, 2, COL_FG);
 }
 
 // INFO ----------------------------------------------------------------------------
@@ -418,10 +422,10 @@ void drawInfo(Adafruit_GFX &g, const AppState &s) {
 
   drawHeader(g, "INFO", s.wifiConnected ? "CONNECTED" : "CONNECTING...", s.wifiConnected);
 
-  g.setTextColor(COL_BLACK);
+  g.setTextColor(COL_FG);
 
   // Device IP box
-  g.drawRoundRect(INFO_IP_BOX_X, INFO_IP_BOX_Y, INFO_IP_BOX_W, INFO_IP_BOX_H, INFO_IP_BOX_R, COL_BLACK);
+  g.drawRoundRect(INFO_IP_BOX_X, INFO_IP_BOX_Y, INFO_IP_BOX_W, INFO_IP_BOX_H, INFO_IP_BOX_R, COL_FG);
 
   const char *ipText = s.wifiConnected ? s.ip : "NO CONNECTION";
   g.setTextSize(INFO_IP_SIZE);
@@ -496,6 +500,8 @@ Rect wifiDirtyRect(ScreenId id) {
 
 // Dispatch to the right renderer
 void drawScreen(Adafruit_GFX &g, ScreenId id, const AppState &s) {
+  COL_FG = s.darkMode ? COL_WHITE : COL_BLACK;
+  COL_BG = s.darkMode ? COL_BLACK : COL_WHITE;
   switch (id) {
   case SCREEN_CLOCK:
     drawClock(g, s);
