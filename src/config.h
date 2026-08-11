@@ -174,7 +174,6 @@ constexpr int16_t WX_UPDATED_Y = 55;
 constexpr uint8_t WX_TEMP_SIZE = 9;
 constexpr int16_t WX_TEMP_X = 24;
 constexpr int16_t WX_TEMP_Y = 121;
-constexpr int16_t WX_DEG_LARGE_X = 126;
 constexpr int16_t WX_DEG_LARGE_Y = 100;
 
 // Current weather condition text e.g. "PARTLY CLOUDY"
@@ -185,9 +184,7 @@ constexpr int16_t WX_STATUS_Y = 148;
 // e.g. "H: 24" and "L: 20" plus a small degree symbol
 constexpr int16_t WX_HL_Y = 165;
 constexpr int16_t WX_HIGH_X = 25;
-constexpr int16_t WX_HIGH_DEG_X = 78;
 constexpr int16_t WX_LOW_X = 109;
-constexpr int16_t WX_LOW_DEG_X = 162;
 constexpr int16_t WX_HL_DEG_Y = 157;
 
 // Current weather condition icon
@@ -210,8 +207,10 @@ constexpr int16_t WX_CARD_ICON_DX = 19;
 constexpr int16_t WX_CARD_ICON_DY = 25;
 constexpr int16_t WX_CARD_TEMP_DX = 22;
 constexpr int16_t WX_CARD_TEMP_DY = 80;
-constexpr int16_t WX_CARD_DEG_DX = 46;
 constexpr int16_t WX_CARD_DEG_DY = 72;
+
+// Gap between a temperature and its degree glyph.
+constexpr int16_t WX_DEG_GAP = 4;
 
 // MARKETS SCREEN  ---------------------------------------------------------------
 // Last updated time "UPDATED HH:MM" in header

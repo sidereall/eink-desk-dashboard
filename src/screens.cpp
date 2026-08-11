@@ -248,6 +248,17 @@ static const unsigned char *bigIcon(WxIcon w) {
   }
 }
 
+// Draws text then its degree glyph, positioned from the measured text rather than a fixed x.
+static void printWithDegree(Adafruit_GFX &g, const char *s, int16_t x, int16_t y, const unsigned char *deg,
+                            int16_t degW, int16_t degH, int16_t degY) {
+  int16_t bx, by;
+  uint16_t bw, bh;
+  g.getTextBounds(s, x, y, &bx, &by, &bw, &bh);
+
+  printAt(g, s, x, y);
+  g.drawBitmap(bx + (int16_t)bw + WX_DEG_GAP, degY, deg, degW, degH, COL_FG, COL_BG);
+}
+
 void drawWeather(Adafruit_GFX &g, const AppState &s) {
   const WeatherData &w = s.weather;
 
@@ -284,21 +295,16 @@ void drawWeather(Adafruit_GFX &g, const AppState &s) {
   char buf[12];
   snprintf(buf, sizeof(buf), "%d", (int)w.tempNow);
   g.setTextSize(WX_TEMP_SIZE);
-  printAt(g, buf, WX_TEMP_X, WX_TEMP_Y);
-
-  // Degree celsius symbol
-  g.drawBitmap(WX_DEG_LARGE_X, WX_DEG_LARGE_Y, icon_degree_large, ICON_DEG_LARGE_W, ICON_DEG_LARGE_H, COL_FG, COL_BG);
+  printWithDegree(g, buf, WX_TEMP_X, WX_TEMP_Y, icon_degree_large, ICON_DEG_LARGE_W, ICON_DEG_LARGE_H, WX_DEG_LARGE_Y);
 
   g.setTextSize(HDR_SUB_SIZE);
   printAt(g, w.status, WX_STATUS_X, WX_STATUS_Y);
 
   snprintf(buf, sizeof(buf), "H: %d", (int)w.tempHigh);
-  printAt(g, buf, WX_HIGH_X, WX_HL_Y);
-  g.drawBitmap(WX_HIGH_DEG_X, WX_HL_DEG_Y, icon_degree_small, ICON_DEG_SMALL_W, ICON_DEG_SMALL_H, COL_FG, COL_BG);
+  printWithDegree(g, buf, WX_HIGH_X, WX_HL_Y, icon_degree_small, ICON_DEG_SMALL_W, ICON_DEG_SMALL_H, WX_HL_DEG_Y);
 
   snprintf(buf, sizeof(buf), "L: %d", (int)w.tempLow);
-  printAt(g, buf, WX_LOW_X, WX_HL_Y);
-  g.drawBitmap(WX_LOW_DEG_X, WX_HL_DEG_Y, icon_degree_small, ICON_DEG_SMALL_W, ICON_DEG_SMALL_H, COL_FG, COL_BG);
+  printWithDegree(g, buf, WX_LOW_X, WX_HL_Y, icon_degree_small, ICON_DEG_SMALL_W, ICON_DEG_SMALL_H, WX_HL_DEG_Y);
 
   g.drawBitmap(WX_BIG_ICON_X, WX_BIG_ICON_Y, bigIcon((WxIcon)w.iconNow), ICON_BIG_W, ICON_BIG_H, COL_FG, COL_BG);
 
@@ -315,11 +321,20 @@ void drawWeather(Adafruit_GFX &g, const AppState &s) {
     g.drawBitmap(cx + WX_CARD_ICON_DX, cy + WX_CARD_ICON_DY, smallIcon((WxIcon)w.days[i].icon), ICON_SMALL_W,
                  ICON_SMALL_H, COL_FG, COL_BG);
 
+    // Number and glyph centred in the card as one unit.
     g.setTextSize(2);
     snprintf(buf, sizeof(buf), "%d", (int)w.days[i].temp);
-    printAt(g, buf, cx + WX_CARD_TEMP_DX, cy + WX_CARD_TEMP_DY);
-    g.drawBitmap(cx + WX_CARD_DEG_DX, cy + WX_CARD_DEG_DY, icon_degree_small, ICON_DEG_SMALL_W, ICON_DEG_SMALL_H,
-                 COL_FG, COL_BG);
+
+    int16_t bx, by;
+    uint16_t bw, bh;
+    g.getTextBounds(buf, 0, 0, &bx, &by, &bw, &bh);
+
+    const int16_t total = (int16_t)bw + WX_DEG_GAP + ICON_DEG_SMALL_W;
+    const int16_t tx = cx + (WX_CARD_W - total) / 2 - bx;
+
+    printAt(g, buf, tx, cy + WX_CARD_TEMP_DY);
+    g.drawBitmap(tx + bx + (int16_t)bw + WX_DEG_GAP, cy + WX_CARD_DEG_DY, icon_degree_small, ICON_DEG_SMALL_W,
+                 ICON_DEG_SMALL_H, COL_FG, COL_BG);
   }
 }
 
