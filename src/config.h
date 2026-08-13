@@ -65,7 +65,7 @@ constexpr int16_t HDR_TITLE_Y = 37;
 constexpr uint8_t HDR_TITLE_SIZE = 4;
 
 // Shared header subtitle
-constexpr int16_t HDR_SUB_X = 23;
+constexpr int16_t HDR_SUB_X = 22;
 constexpr int16_t HDR_SUB_Y = 55;
 constexpr uint8_t HDR_SUB_SIZE = 2;
 constexpr int16_t HDR_SUB_MAX_W = 201;
@@ -162,12 +162,12 @@ constexpr int16_t TASK_STRIKE_OFFSET = 6;
 constexpr int16_t TASK_STRIKE_THICK = 2;
 
 // Tasks done tracking e.g. "0 out of 5 done". Fixed length.
-constexpr int16_t TASK_COUNT_X = 261;
+constexpr int16_t TASK_COUNT_RIGHT = 378;
 constexpr int16_t TASK_COUNT_Y = 55;
 
 // WEATHER SCREEN  -------------------------------------------------------------------
 // Last updated time "UPDATED HH:MM" in header
-constexpr int16_t WX_UPDATED_X = 234;
+constexpr int16_t WX_UPDATED_RIGHT = 378;
 constexpr int16_t WX_UPDATED_Y = 55;
 
 // Current temperature, with its degree symbol
@@ -214,7 +214,7 @@ constexpr int16_t WX_DEG_GAP = 4;
 
 // MARKETS SCREEN  ---------------------------------------------------------------
 // Last updated time "UPDATED HH:MM" in header
-constexpr int16_t MK_UPDATED_X = 234;
+constexpr int16_t MK_UPDATED_RIGHT = 378;
 constexpr int16_t MK_UPDATED_Y = 55;
 
 // Market rounded rect, contains: name, price, change arrow

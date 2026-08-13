@@ -91,6 +91,14 @@ static void drawWifi(Adafruit_GFX &g, int16_t x, int16_t y, bool connected) {
   g.drawBitmap(x, y, icon_wifi, ICON_WIFI_W, ICON_WIFI_H, COL_FG, COL_BG);
 }
 
+// Draws text so its right edge is always aligned right, regardless of text length.
+static void printRightAligned(Adafruit_GFX &g, const char *s, int16_t right, int16_t y) {
+  int16_t bx, by;
+  uint16_t bw, bh;
+  g.getTextBounds(s, 0, y, &bx, &by, &bw, &bh);
+  printAt(g, s, right - (int16_t)bw - bx, y);
+}
+
 // Title, subtitle, rule and Wi-Fi icon. Shared by TASKS / WEATHER / MARKETS.
 static void drawHeader(Adafruit_GFX &g, const char *title, const char *subtitle, bool wifiConnected) {
   g.setTextColor(COL_FG);
@@ -174,7 +182,7 @@ void drawTasks(Adafruit_GFX &g, const AppState &s) {
   snprintf(counter, sizeof(counter), "%u of %u done", (unsigned)done, (unsigned)s.taskCount);
   g.setTextColor(COL_FG);
   g.setTextSize(HDR_SUB_SIZE);
-  printAt(g, counter, TASK_COUNT_X, TASK_COUNT_Y);
+  printRightAligned(g, counter, TASK_COUNT_RIGHT, TASK_COUNT_Y);
 
   // All five boxes are always drawn. Empty slots get a box and circle, no text.
   for (uint8_t i = 0; i < MAX_TASKS; i++) {
@@ -289,7 +297,7 @@ void drawWeather(Adafruit_GFX &g, const AppState &s) {
   char updated[20];
   snprintf(updated, sizeof(updated), "%s %s", w.stale ? "STALE" : "UPDATED", w.updated);
   g.setTextSize(HDR_SUB_SIZE);
-  printAt(g, updated, WX_UPDATED_X, WX_UPDATED_Y);
+  printRightAligned(g, updated, WX_UPDATED_RIGHT, WX_UPDATED_Y);
 
   // Current conditions
   char buf[12];
@@ -372,7 +380,7 @@ void drawMarkets(Adafruit_GFX &g, const AppState &s) {
   char updated[20];
   snprintf(updated, sizeof(updated), "%s %s", m.stale ? "STALE" : "UPDATED", m.updated);
   g.setTextSize(HDR_SUB_SIZE);
-  printAt(g, updated, MK_UPDATED_X, MK_UPDATED_Y);
+  printRightAligned(g, updated, MK_UPDATED_RIGHT, MK_UPDATED_Y);
 
   // Quote box: name, price, change
   g.drawRoundRect(MK_BOX_X, MK_BOX_Y, MK_BOX_W, MK_BOX_H, MK_BOX_R, COL_FG);
