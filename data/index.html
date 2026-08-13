@@ -203,7 +203,6 @@
       color: var(--soft);
     }
 
-    label:has(input[type=checkbox]),
     label:has(input[type=radio]) {
       display: flex;
       align-items: center;
@@ -249,6 +248,60 @@
       flex-wrap: wrap;
       gap: .9rem;
       margin: var(--space) 0 0;
+    }
+
+    /* TOGGLE SWITCH */
+    .switch {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: .7rem;
+      cursor: pointer;
+    }
+
+    .switch input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .track {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      width: 1.7em;
+      height: .85em;
+      padding: .1em;
+      background: var(--field);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      transition: background .15s, border-color .15s;
+    }
+
+    .track::after {
+      content: "";
+      width: .65em;
+      height: .65em;
+      background: var(--soft);
+      border-radius: 50%;
+      box-shadow: 0 1px 2px var(--shadow);
+      transition: transform .18s cubic-bezier(.4, 0, .2, 1), background .15s;
+      flex: none;
+    }
+
+    .switch input:checked+.track {
+      background: var(--ink);
+      border-color: var(--ink);
+    }
+
+    .switch input:checked+.track::after {
+      background: var(--card);
+      transform: translateX(calc(.85em - 2px));
+    }
+
+    .switch input:focus-visible+.track {
+      outline: 2px solid var(--ink);
+      outline-offset: 2px;
     }
 
     /* STATUS TEXT */
@@ -426,7 +479,10 @@
     <h2 onclick="toggleAcc(this.parentElement)">CLOCK<span class="chev"></span></h2>
     <div class="panel-body">
       <label><small>TIME ZONE</small><select id="tz"></select></label>
-      <label><input type="checkbox" id="sd"> SHOW THE DATE ON THE CLOCK SCREEN</label>
+      <label class="switch">
+        <span>SHOW THE DATE ON THE CLOCK SCREEN</span>
+        <input type="checkbox" id="sd"><span class="track"></span>
+      </label>
       <p class="m">DEVICE TIME: <span id="now" class="readout">&mdash;</span></p>
       <div class="actions">
         <button onclick="syncClock()">SAVE</button> <span id="cr" class="m"></span>
@@ -480,7 +536,10 @@
     <div class="panel-body">
       <label><input type="radio" name="dm" value="0" id="dm0" onchange="modeChanged()"> CYCLE THROUGH SCREENS</label>
       <label><input type="radio" name="dm" value="1" id="dm1" onchange="modeChanged()"> SHOW ONE SCREEN ONLY</label>
-      <label><input type="checkbox" id="dk"> DARK MODE</label>
+      <label class="switch">
+        <span>DARK MODE</span>
+        <input type="checkbox" id="dk"><span class="track"></span>
+      </label>
       <label id="lss"><small>SCREEN</small><select id="ss"></select></label>
       <label id="ldw"><small>TIME BETWEEN SCREEN CHANGES</small><select id="dw"></select></label>
       <div class="actions">
