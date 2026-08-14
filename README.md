@@ -8,31 +8,43 @@ A standalone e-ink desk display built around an ESP32-C6 microcontroller, runnin
 
 ## Screens
 
-Four screens rotate on a timer, or one can be pinned, both configurable via the web page. Each shows a Wi-Fi icon in the top right corner when connected.
+Four screens cycle on a timer, or one can be pinned, both configurable via the web page. Each shows a Wi-Fi icon in the top right corner when connected.
 
 ### Clock
 
 Time from NTP, with the timezone chosen from the web page and daylight saving worked out automatically from it. The date line under the clock can be toggled on or off.
 
-<img src="docs/clock.png" width="440" alt="Clock screen">
+<p>
+  <img src="docs/clock_w.png" width="360" alt="Clock screen, light mode">
+  <img src="docs/clock_b.png" width="360" alt="Clock screen, dark mode">
+</p>
 
 ### Tasks
 
 Five slots, edited from the web page. Shows the current date and how many entered tasks are complete. Completed tasks are struck through; deleting one closes the gap.
 
-<img src="docs/tasks.png" width="440" alt="Tasks screen">
+<p>
+  <img src="docs/tasks_w.png" width="360" alt="Tasks screen, light mode">
+  <img src="docs/tasks_b.png" width="360" alt="Tasks screen, dark mode">
+</p>
 
 ### Weather
 
 Current conditions with a weather icon and today's high and low, plus a four-day forecast, from Open-Meteo. Location is searched by city name from the web page. No API key needed.
 
-<img src="docs/weather.png" width="440" alt="Weather screen">
+<p>
+  <img src="docs/weather_w.png" width="360" alt="Weather screen, light mode">
+  <img src="docs/weather_b.png" width="360" alt="Weather screen, dark mode">
+</p>
 
 ### Markets
 
-A SPY quote with the change since the previous close, and a sparkline of the session. SPY is fixed, chosen because ETFs are the only free tier on Twelve Data and it gives a general read on the stock market. Needs a free Twelve Data key, entered from the web page.
+A SPY quote with the change since the previous close, and a sparkline of the session. The header shows whether the NYSE is open or closed. SPY is fixed, chosen because ETFs are the only free tier on Twelve Data and it gives a general read on the stock market. Needs a free Twelve Data key, entered from the web page.
 
-<img src="docs/markets.png" width="440" alt="Markets screen">
+<p>
+  <img src="docs/markets_w.png" width="360" alt="Marekts screen, light mode">
+  <img src="docs/markets_b.png" width="360" alt="Markets screen, dark mode">
+</p>
 
 ---
 
@@ -83,7 +95,7 @@ After a successful Wi-Fi connection, the e-ink panel shows its IP address on scr
 
 Each section below has a save button that pushes the change to the panel immediately. The page also reflects the device's current settings on load, so opening it from a different device still shows what's already configured, except the Twelve Data API key, which only shows whether one is set or not.
 
-**Display** - Pin a single screen, or set rotation between 5 and 60 minutes.
+**Display** - Pin a single screen, or set to cycle through screens between 5 and 60 minutes. Toggle for dark mode.
 
 <img src="docs/display_webui.png" width="440" alt="Display settings">
 
@@ -107,7 +119,7 @@ Settings are saved to flash and survive both a power cut and reflashing the firm
 
 ---
 
-## Design decisions
+## Project structure
 
 ```
 src/
@@ -126,21 +138,13 @@ data/
   index.html         |the config page itself
 ```
 
-**Only `panel.cpp` knows the display exists.** Every renderer takes a generic `Adafruit_GFX` canvas, so drawing code has no dependency on the e-ink library.
-
-**Screens are pure functions of state.** `AppState` holds everything that can appear on the panel, and the same state always produces the same pixels, which keeps redundant refreshes off the display.
-
-**Slow work runs on its own task.** A TLS handshake blocks for seconds, so both network fetches are separate FreeRTOS tasks that hand results back through mutex-guarded state. Neither touches the panel, the web server, or flash.
-
-**Web handlers never draw.** They validate, save, raise a flag and return. The main loop notices the flag and draws, so an HTTP request never waits on a display refresh.
-
 ---
 
 ## Security
 
-**Protected.** Every write endpoint validates input at the boundary. Secrets never come back out: the markets key reads back only as configured or not, the Wi-Fi password exists only in the compiled firmware, and the key is logged by length alone.
+**Protected.** Every write endpoint validates input at the boundary. Secrets never come back out: the markets key reads back only as configured or not, the Wi-Fi password exists only in the compiled firmware, and the key is logged by length alone. The radio won't join anything weaker than WPA2, so an open network with a matching name can't lure the device onto it.
 
-**Not protected.** Any device on the same network can call the write endpoints, the same posture as most consumer devices on the LAN.
+**Not protected.** Any device on the same network can call the write endpoints, the same setup as most consumer devices on the LAN.
 
 **Deliberately not done.** HTTPS would need a self-signed certificate and a browser warning on every visit, worse for the user than the problem it solves. Flash encryption is disproportionate for this scope.
 
@@ -148,10 +152,10 @@ data/
 
 ## Future plans
 
+- ~~Dark mode for both the panel and the web page.~~
 - Fix bugs surfacing from longer-term use.
-- Choice of ETF on the markets screen, not just SPY.
-- Dark mode for both the panel and the web page.
 - Battery charge level monitoring.
+- Choice of ETF on the markets screen, not just SPY.
 - Custom PCB, replacing the current point-to-point wiring.
 
 ---
