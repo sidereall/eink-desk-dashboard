@@ -520,11 +520,22 @@
   <section class="acc">
     <h2 onclick="toggleAcc(this.parentElement)">MARKETS<span class="chev"></span></h2>
     <div class="panel-body">
-      <p class="m">SHOWS <b id="mklabel">SPY</b> (S&amp;P 500 ETF).<br>
-        NEEDS A FREE <a href="https://twelvedata.com" target="_blank" rel="noopener">TWELVE DATA</a> API KEY.
+      <p class="m">SHOWS A US-LISTED SYMBOL FROM
+        <a href="https://twelvedata.com" target="_blank" rel="noopener">TWELVE DATA</a>. NEEDS A FREE API KEY.
       </p>
-      <label><input type="password" id="mk" placeholder="PASTE YOUR API KEY" autocomplete="off"></label>
-      <p class="m">STATUS: <b id="mkst">NOT SET</b></p>
+      <label><small>API KEY</small><input type="password" id="mk" placeholder="PASTE YOUR API KEY"
+          autocomplete="off"></label>
+      <p class="m">KEY STATUS: <b id="mkst">NOT SET</b></p>
+
+      <div class="search">
+        <input id="msq" type="text" placeholder="SEARCH FOR A SYMBOL" onkeydown="if(event.key==='Enter')symSearch()">
+        <button onclick="symSearch()">SEARCH</button>
+      </div>
+      <label id="lmsl" style="display:none">
+        <small>MATCHES</small><select id="msl" onchange="pickSymbol()"></select>
+      </label>
+      <p class="m">SYMBOL: <b id="msym">SPY</b></p>
+
       <div class="actions">
         <button onclick="sendMarket()">SAVE</button> <span id="mkr" class="m"></span>
       </div>
@@ -681,24 +692,66 @@
     }
 
     // MARKETS ----------------------------------------------------------
+    // The symbol search happens here rather than on the device, same as the
+    // weather location lookup.
+    let SYM = '';
+    let SYMS = [];
+
     async function loadMarket() {
       const m = await get('/api/markets');
-      mklabel.textContent = m.label;
       mkst.textContent = m.configured ? 'KEY SET' : 'NOT SET';
       mkst.className = m.configured ? 'ok' : '';
+      SYM = m.symbol;
+      msym.textContent = SYM;
+    }
+
+    async function symSearch() {
+      const q = msq.value.trim();
+      if (!q) return;
+
+      mkr.textContent = 'SEARCHING...';
+      mkr.className = 'm';
+
+      try {
+        const u = 'https://api.twelvedata.com/symbol_search?outputsize=10&symbol=' + encodeURIComponent(q);
+        SYMS = (await get(u)).data || [];
+      } catch (e) {
+        SYMS = [];
+      }
+
+      // The free tier covers US-listed instruments only. Filtering by country
+      // drops the international listings that would fail at fetch time.
+      SYMS = SYMS.filter(s => s.country === 'United States');
+
+      if (!SYMS.length) {
+        mkr.textContent = 'NO US-LISTED MATCHES';
+        lmsl.style.display = 'none';
+        return;
+      }
+
+      msl.innerHTML = SYMS.map((s, i) =>
+        `<option value="${i}">${esc(s.symbol)} - ${esc(s.instrument_name)}</option>`).join('');
+      lmsl.style.display = '';
+      mkr.textContent = SYMS.length + ' MATCH' + (SYMS.length > 1 ? 'ES' : '');
+      pickSymbol();
+    }
+
+    function pickSymbol() {
+      const s = SYMS[msl.value];
+      if (!s) return;
+      SYM = s.symbol;
+      msym.textContent = SYM;
     }
 
     async function sendMarket() {
       const key = mk.value.trim();
-      if (!key) {
-        mkr.textContent = 'PASTE A KEY FIRST';
-        mkr.className = 'm';
-        return;
-      }
+      const body = new URLSearchParams({ symbol: SYM });
+      if (key) body.append('key', key);
+
       const r = await fetch('/api/markets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ key }).toString()
+        body: body.toString()
       });
       status(mkr, r.ok, 'SAVED - FETCHING PRICE', 'REJECTED, CHECK THE KEY');
       mk.value = '';

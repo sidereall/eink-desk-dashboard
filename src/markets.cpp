@@ -1,4 +1,4 @@
-// markets.cpp - Twelve Data: quote and intraday time series for SPY.
+// markets.cpp - Twelve Data quote and intraday series for the chosen symbol.
 //
 // Two endpoints per refresh: /quote for the price and open/closed flag,
 // /time_series for the sparkline. That's 2 of the free tier's 800 daily
@@ -22,10 +22,11 @@ extern const uint8_t rootca_crt_bundle_start[] asm("_binary_x509_crt_bundle_star
 extern const uint8_t rootca_crt_bundle_end[] asm("_binary_x509_crt_bundle_end");
 static const size_t ROOTCA_BUNDLE_SIZE = (size_t)(rootca_crt_bundle_end - rootca_crt_bundle_start);
 
-// The API key, copied in by the loop task. The fetch task never reads NVS.
+// The API key and symbol, copied in by the loop task. The fetch task never reads NVS.
 struct MktConfig {
   bool configured;
   char key[MARKET_KEY_MAX];
+  char symbol[MARKET_SYMBOL_MAX];
 };
 
 static SemaphoreHandle_t s_lock = nullptr;
@@ -99,9 +100,9 @@ static bool isApiError(JsonDocument &doc) {
 }
 
 // Current price, previous close, and whether the market is open.
-static bool fetchQuote(const char *key, MarketData &out) {
+static bool fetchQuote(const char *key, const char *symbol, MarketData &out) {
   char url[224];
-  snprintf(url, sizeof(url), "https://api.twelvedata.com/quote?symbol=%s&apikey=%s", MARKET_SYMBOL, key);
+  snprintf(url, sizeof(url), "https://api.twelvedata.com/quote?symbol=%s&apikey=%s", symbol, key);
 
   JsonDocument doc;
   if (!httpsGetJson(url, doc))
@@ -121,7 +122,7 @@ static bool fetchQuote(const char *key, MarketData &out) {
   const double prev = atof(prevS);
   const double pct = (prev != 0.0) ? (price - prev) / prev * 100.0 : 0.0;
 
-  snprintf(out.name, sizeof(out.name), "%s", MARKET_LABEL);
+  snprintf(out.name, sizeof(out.name), "%s", symbol);
   snprintf(out.price, sizeof(out.price), "%.2f", price);
   snprintf(out.changePct, sizeof(out.changePct), "%.2f%%", fabs(pct));
   out.rising = (pct >= 0.0);
@@ -130,12 +131,13 @@ static bool fetchQuote(const char *key, MarketData &out) {
 }
 
 // The session's 5-minute closes, for the sparkline.
-static bool fetchSeries(const char *key, MarketData &out) {
+static bool fetchSeries(const char *key, const char *symbol, MarketData &out) {
+  // 5-minute bars, one session's worth. outputsize caps the point count.
   char url[256];
   snprintf(url, sizeof(url),
            "https://api.twelvedata.com/time_series"
            "?symbol=%s&interval=5min&outputsize=%u&apikey=%s",
-           MARKET_SYMBOL, (unsigned)MARKET_SPARK_MAX, key);
+           symbol, (unsigned)MARKET_SPARK_MAX, key);
 
   JsonDocument doc;
   if (!httpsGetJson(url, doc))
@@ -171,11 +173,11 @@ static bool fetchSeries(const char *key, MarketData &out) {
 
 // Both endpoints, one after the other. Either failing fails the whole fetch.
 static bool fetchOnce(const MktConfig &cfg, MarketData &out) {
-  Serial.printf("[mkt] fetching %s | heap=%u\n", MARKET_SYMBOL, (unsigned)ESP.getFreeHeap());
+  Serial.printf("[mkt] fetching %s | heap=%u\n", cfg.symbol, (unsigned)ESP.getFreeHeap());
 
-  if (!fetchQuote(cfg.key, out))
+  if (!fetchQuote(cfg.key, cfg.symbol, out))
     return false;
-  if (!fetchSeries(cfg.key, out))
+  if (!fetchSeries(cfg.key, cfg.symbol, out))
     return false;
 
   struct tm now;
@@ -270,6 +272,7 @@ void marketsApplySettings() {
   MktConfig c;
   memset(&c, 0, sizeof(c));
   settingsGetMarketKey(c.key, sizeof(c.key));
+  settingsGetMarketSymbol(c.symbol, sizeof(c.symbol));
   c.configured = settingsMarketConfigured();
   lock();
   s_cfg = c;

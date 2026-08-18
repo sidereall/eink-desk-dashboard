@@ -49,3 +49,5 @@ void settingsSetWeather(float lat, float lon, const char *name);
 bool settingsMarketConfigured();
 void settingsGetMarketKey(char *key, size_t nKey);
 void settingsSetMarketKey(const char *key);
+void settingsGetMarketSymbol(char *symbol, size_t nSymbol);
+void settingsSetMarketSymbol(const char *symbol);

@@ -22,6 +22,7 @@ static const char *KEY_WX_LON = "wx_lon";
 static const char *KEY_WX_NAME = "wx_name";
 static const char *KEY_MKT_KEY = "mkt_key";
 static const char *KEY_DARK_MODE = "dark_mode";
+static const char *KEY_MKT_SYM = "mkt_sym";
 
 void settingsBegin() { prefs.begin(NS, /*readOnly=*/false); }
 
@@ -109,4 +110,14 @@ void settingsSetMarketKey(const char *key) {
   prefs.putString(KEY_MKT_KEY, key);
   // Log the length only, never the key itself.
   Serial.printf("[settings] market API key saved (%u chars)\n", (unsigned)strlen(key));
+}
+
+void settingsGetMarketSymbol(char *symbol, size_t nSymbol) {
+  const String s = prefs.getString(KEY_MKT_SYM, DEFAULT_MARKET_SYMBOL);
+  snprintf(symbol, nSymbol, "%s", s.c_str());
+}
+
+void settingsSetMarketSymbol(const char *symbol) {
+  prefs.putString(KEY_MKT_SYM, symbol);
+  Serial.printf("[settings] market symbol: %s\n", symbol);
 }

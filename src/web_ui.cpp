@@ -174,29 +174,46 @@ static void handleWeatherPost() {
 
 // Reports whether a key is set, never the key itself.
 static void handleMarketsGet() {
-  char body[96];
-  snprintf(body, sizeof(body), "{\"configured\":%s,\"label\":\"%s\"}", settingsMarketConfigured() ? "true" : "false",
-           MARKET_LABEL);
+  char symbol[MARKET_SYMBOL_MAX];
+  settingsGetMarketSymbol(symbol, sizeof(symbol));
+
+  char body[128];
+  snprintf(body, sizeof(body), "{\"configured\":%s,\"symbol\":\"%s\"}", settingsMarketConfigured() ? "true" : "false",
+           symbol);
   server.send(200, "application/json", body);
 }
-
+// Either field can be sent on its own, so changing the symbol, no need to re-enter the key.
 static void handleMarketsPost() {
-  if (!server.hasArg("key")) {
-    server.send(400, "text/plain", "missing key");
+  bool changed = false;
+
+  if (server.hasArg("key")) {
+    const String key = server.arg("key");
+    // Twelve Data keys are 32 characters. Accept a range, reject obvious junk.
+    if (key.length() < 8 || key.length() >= MARKET_KEY_MAX) {
+      server.send(400, "text/plain", "bad key length");
+      return;
+    }
+    settingsSetMarketKey(key.c_str());
+    changed = true;
+  }
+
+  if (server.hasArg("symbol")) {
+    const String sym = server.arg("symbol");
+    if (sym.length() < 1 || sym.length() >= MARKET_SYMBOL_MAX) {
+      server.send(400, "text/plain", "bad symbol length");
+      return;
+    }
+    settingsSetMarketSymbol(sym.c_str());
+    changed = true;
+  }
+
+  if (!changed) {
+    server.send(400, "text/plain", "nothing to save");
     return;
   }
 
-  const String key = server.arg("key");
-  // Twelve Data keys are 32 characters. Accept a range, reject obvious junk.
-  if (key.length() < 8 || key.length() >= MARKET_KEY_MAX) {
-    server.send(400, "text/plain", "bad key length");
-    return;
-  }
-
-  settingsSetMarketKey(key.c_str());
-  marketsApplySettings(); // push the new key to the fetch task
-  marketsRequestFetch();  // don't wait for the next slot to try it
-
+  marketsApplySettings();
+  marketsRequestFetch();
   s_syncRequested = true;
   server.send(200, "text/plain", "ok");
 }

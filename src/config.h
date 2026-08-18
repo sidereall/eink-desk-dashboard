@@ -309,10 +309,11 @@ constexpr uint32_t FETCH_NTP_GRACE_MS = 45000;
 constexpr uint32_t SERIAL_BOOT_SETTLE_MS = 300;
 
 // MARKETS ---------------------------------------------------------------------------
-// Displays SPY, part of the free API tier
-// It follows the S&P 500 index at 1/10th of the price
-#define MARKET_SYMBOL "SPY"
-#define MARKET_LABEL "SPY"
+// By default it displays SPY, part of the free API tier.
+// It follows the S&P 500 index at 1/10th of the price.
+// The free tier covers US markets only.
+#define DEFAULT_MARKET_SYMBOL "SPY"
+constexpr size_t MARKET_SYMBOL_MAX = 12;
 
 constexpr size_t MARKET_KEY_MAX = 40;
 
