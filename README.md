@@ -39,7 +39,7 @@ Current conditions with a weather icon and today's high and low, plus a four-day
 
 ### Markets
 
-A SPY quote with the change since the previous close, and a sparkline of the session. The header shows whether the NYSE is open or closed. SPY is fixed, chosen because ETFs are the only free tier on Twelve Data and it gives a general read on the stock market. Needs a free Twelve Data key, entered from the web page.
+A quote with the change since the previous close, and a sparkline of the session. The header shows whether the NYSE is open or closed. Any US stock or ETF can be chosen from the web page, searched by name or ticker, with SPY as the default. Needs a free Twelve Data key, also entered from the web page.
 
 <p>
   <img src="docs/markets_w.png" width="360" alt="Marekts screen, light mode">
@@ -111,7 +111,7 @@ Each section below has a save button that pushes the change to the panel immedia
 
 <img src="docs/weather_webui.png" width="440" alt="Weather settings">
 
-**Markets** - The Twelve Data API key.
+**Markets** - The Twelve Data API key, and a search for the US-listed stock or ETF to display.
 
 <img src="docs/markets_webui.png" width="440" alt="Markets settings">
 
@@ -153,9 +153,11 @@ data/
 ## Future plans
 
 - ~~Dark mode for both the panel and the web page.~~
+- ~~Choice of any US stock or ETF for the markets screen, not just SPY.~~
 - Fix bugs surfacing from longer-term use.
+- Temperature unit switching, Celsius or Fahrenheit.
 - Battery charge level monitoring.
-- Choice of ETF on the markets screen, not just SPY.
+- Web page UI/UX improvements.
 - Custom PCB, replacing the current point-to-point wiring.
 
 ---
