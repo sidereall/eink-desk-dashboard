@@ -60,6 +60,7 @@ struct WeatherData {
   bool configured; // location set on the web page
   bool valid;      // fetched at least once
   bool stale;      // last fetch is x hours old
+  bool fahrenheit; // picks which degree glyph to draw
 
   char location[WX_NAME_MAX]; // e.g. "BERLIN"
   char status[20];            // e.g. "PARTLY CLOUDY"

@@ -44,6 +44,9 @@ bool settingsWeatherConfigured();
 void settingsGetWeather(float *lat, float *lon, char *name, size_t nName);
 void settingsSetWeather(float lat, float lon, const char *name);
 
+bool settingsFahrenheit();
+void settingsSetFahrenheit(bool f);
+
 // MARKETS
 // Just the API key, the symbol is fixed in config.h.
 bool settingsMarketConfigured();

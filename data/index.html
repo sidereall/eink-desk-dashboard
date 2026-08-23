@@ -511,6 +511,8 @@
         <small>MATCHES</small><select id="wl" onchange="pickPlace()"></select>
       </label>
       <p class="m">LOCATION: <b id="wn">NOT SET</b></p>
+      <label><input type="radio" name="unit" value="0" id="uc" checked> CELSIUS</label>
+      <label><input type="radio" name="unit" value="1" id="uf"> FAHRENHEIT</label>
       <div class="actions">
         <button onclick="sendWx()">SAVE</button> <span id="wr" class="m"></span>
       </div>
@@ -680,15 +682,27 @@
     }
 
     async function sendWx() {
+      await fetch('/api/units?f=' + (uf.checked ? 1 : 0), { method: 'POST' });
+
       if (!WX.name) {
         wr.textContent = 'SEARCH FOR A TOWN OR CITY';
         wr.className = 'm';
         return;
       }
+
       const q = new URLSearchParams({ lat: WX.lat, lon: WX.lon, name: WX.name });
       const r = await fetch('/api/weather?' + q, { method: 'POST' });
       status(wr, r.ok, 'SAVED - FETCHING WEATHER');
       setTimeout(loadWx, 800);
+    }
+
+    async function loadUnits() {
+      wf.checked = (await get('/api/units')).fahrenheit;
+    }
+
+    async function loadUnits() {
+      const u = await get('/api/units');
+      (u.fahrenheit ? uf : uc).checked = true;
     }
 
     // MARKETS ----------------------------------------------------------
@@ -811,7 +825,7 @@
       dk.checked = d.dark;
       modeChanged();
 
-      await Promise.all([loadTasks(), loadWx(), loadMarket()]);
+      await Promise.all([loadTasks(), loadWx(), loadMarket(), loadUnits()]);
     }
 
     load();

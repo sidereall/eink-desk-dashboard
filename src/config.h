@@ -273,6 +273,8 @@ constexpr size_t TZ_POSIX_MAX = 48;
 constexpr size_t TZ_LABEL_MAX = 40;
 
 // WEATHER -------------------------------------------------------------------------
+constexpr bool DEFAULT_FAHRENHEIT = false;
+
 constexpr size_t WX_NAME_MAX = 24; // city name
 
 // Fetch on the clock (10:30, 11:00...) so the update time doesn't drift.

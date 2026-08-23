@@ -23,6 +23,7 @@ static const char *KEY_WX_NAME = "wx_name";
 static const char *KEY_MKT_KEY = "mkt_key";
 static const char *KEY_DARK_MODE = "dark_mode";
 static const char *KEY_MKT_SYM = "mkt_sym";
+static const char *KEY_FAHRENHEIT = "fahrenheit";
 
 void settingsBegin() { prefs.begin(NS, /*readOnly=*/false); }
 
@@ -78,6 +79,8 @@ void settingsSetDarkMode(bool dark) { prefs.putBool(KEY_DARK_MODE, dark); }
 
 // WEATHER ----------------------------------------------------------------
 bool settingsWeatherConfigured() { return prefs.getString(KEY_WX_NAME, "").length() > 0; }
+bool settingsFahrenheit() { return prefs.getBool(KEY_FAHRENHEIT, DEFAULT_FAHRENHEIT); }
+void settingsSetFahrenheit(bool f) { prefs.putBool(KEY_FAHRENHEIT, f); }
 
 void settingsGetWeather(float *lat, float *lon, char *name, size_t nName) {
   if (lat)

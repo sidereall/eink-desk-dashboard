@@ -22,6 +22,7 @@ static const size_t ROOTCA_BUNDLE_SIZE = (size_t)(rootca_crt_bundle_end - rootca
 // The location, copied in by the loop task. The fetch task never reads NVS.
 struct WxConfig {
   bool configured;
+  bool fahrenheit;
   float lat;
   float lon;
   char name[WX_NAME_MAX];
@@ -146,14 +147,14 @@ static bool fetchOnce(const WxConfig &cfg, WeatherData &out) {
   const String latStr = String(cfg.lat, 4);
   const String lonStr = String(cfg.lon, 4);
 
-  char url[288];
+  char url[320];
   snprintf(url, sizeof(url),
            "https://api.open-meteo.com/v1/forecast"
            "?latitude=%s&longitude=%s"
            "&current=temperature_2m,weather_code"
            "&daily=weather_code,temperature_2m_max,temperature_2m_min"
-           "&timezone=auto&forecast_days=5",
-           latStr.c_str(), lonStr.c_str());
+           "&timezone=auto&forecast_days=5%s",
+           latStr.c_str(), lonStr.c_str(), cfg.fahrenheit ? "&temperature_unit=fahrenheit" : "");
 
   Serial.printf("[wx] heap=%u\n", (unsigned)ESP.getFreeHeap());
   Serial.printf("[wx] GET %s\n", url);
@@ -350,6 +351,7 @@ void weatherApplySettings() {
   memset(&c, 0, sizeof(c));
   settingsGetWeather(&c.lat, &c.lon, c.name, sizeof(c.name));
   c.configured = settingsWeatherConfigured();
+  c.fahrenheit = settingsFahrenheit();
 
   lock();
   s_cfg = c;
@@ -375,6 +377,7 @@ void weatherCopyInto(AppState &s) {
   unlock();
 
   s.weather.configured = cfg.configured;
+  s.weather.fahrenheit = cfg.fahrenheit;
   snprintf(s.weather.location, sizeof(s.weather.location), "%s", cfg.name);
   upperAscii(s.weather.location);
 

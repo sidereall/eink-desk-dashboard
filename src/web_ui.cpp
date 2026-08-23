@@ -172,6 +172,22 @@ static void handleWeatherPost() {
   server.send(200, "text/plain", "ok");
 }
 
+// The temperature unit is separate from the location, so it can be changed
+// before one is set.
+static void handleUnitsGet() {
+  char body[32];
+  snprintf(body, sizeof(body), "{\"fahrenheit\":%s}", settingsFahrenheit() ? "true" : "false");
+  server.send(200, "application/json", body);
+}
+
+static void handleUnitsPost() {
+  settingsSetFahrenheit(server.hasArg("f") && server.arg("f") == "1");
+  weatherApplySettings(); // push it to the fetch task
+  weatherRequestFetch();  // refetch so the values match the unit
+  s_syncRequested = true;
+  server.send(200, "text/plain", "ok");
+}
+
 // Reports whether a key is set, never the key itself.
 static void handleMarketsGet() {
   char symbol[MARKET_SYMBOL_MAX];
@@ -367,6 +383,8 @@ void webBegin() {
     server.on("/api/tasks", HTTP_POST, handleTasksPost);
     server.on("/api/weather", HTTP_GET, handleWeatherGet);
     server.on("/api/weather", HTTP_POST, handleWeatherPost);
+    server.on("/api/units", HTTP_GET, handleUnitsGet);
+    server.on("/api/units", HTTP_POST, handleUnitsPost);
     server.on("/api/markets", HTTP_GET, handleMarketsGet);
     server.on("/api/markets", HTTP_POST, handleMarketsPost);
     server.on("/api/dismiss", HTTP_POST, handleDismiss);
