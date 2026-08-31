@@ -30,7 +30,7 @@ Five slots, edited from the web page. Shows the current date and how many entere
 
 ### Weather
 
-Current conditions with a weather icon and today's high and low, plus a four-day forecast, from Open-Meteo. Location is searched by city name from the web page. No API key needed.
+Current conditions with a weather icon and today's high and low, plus a four-day forecast, from Open-Meteo. Location is searched by city name from the web page, along with a choice of Celsius or Fahrenheit. No API key needed.
 
 <p>
   <img src="docs/weather_w.png" width="360" alt="Weather screen, light mode">
@@ -107,7 +107,7 @@ Each section below has a save button that pushes the change to the panel immedia
 
 <img src="docs/tasks_webui.png" width="440" alt="Task settings">
 
-**Weather** - Weather location, searched by city name.
+**Weather** - Weather location, searched by city name, and the temperature unit.
 
 <img src="docs/weather_webui.png" width="440" alt="Weather settings">
 
@@ -154,8 +154,8 @@ data/
 
 - ~~Dark mode for both the panel and the web page.~~
 - ~~Choice of any US stock or ETF for the markets screen, not just SPY.~~
+- ~~Temperature unit switching, Celsius or Fahrenheit.~~
 - Fix bugs surfacing from longer-term use.
-- Temperature unit switching, Celsius or Fahrenheit.
 - Battery charge level monitoring.
 - Web page UI/UX improvements.
 - Custom PCB, replacing the current point-to-point wiring.
