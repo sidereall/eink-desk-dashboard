@@ -8,7 +8,7 @@ A standalone e-ink desk display built around an ESP32-C6 microcontroller, runnin
 
 ## Screens
 
-Four screens cycle on a timer, or one can be pinned, both configurable via the web page. Each shows a Wi-Fi icon in the top right corner when connected.
+Four screens cycle on a timer, or one can be pinned, both configurable via the web page. Each shows the battery level and a Wi-Fi icon in the top right corner.
 
 ### Clock
 
@@ -58,6 +58,7 @@ Roughly 30€ in parts including the enclosure.
 | WeAct 4.2" e-ink screen | 400x300, black and white, SSD1683 controller |
 | SM5308 power module | USB-C input, charge and boost |
 | 18650 li-ion cell | Used 2200mAh, size depends on desired runtime |
+| 2x 82kΩ resistors | Voltage divider for the battery reading |
 | 3D printed enclosure | Two .stl files modeled by me, see `enclosure/` |
 
 <br>
@@ -155,9 +156,10 @@ data/
 - ~~Dark mode for both the panel and the web page.~~
 - ~~Choice of any US stock or ETF for the markets screen, not just SPY.~~
 - ~~Temperature unit switching, Celsius or Fahrenheit.~~
+- ~~Battery charge level monitoring.~~
 - Fix bugs surfacing from longer-term use.
-- Battery charge level monitoring.
 - Web page UI/UX improvements.
+- Wi-Fi setup through a temporary access point, instead of compiling credentials in.
 - Custom PCB, replacing the current point-to-point wiring.
 
 ---
