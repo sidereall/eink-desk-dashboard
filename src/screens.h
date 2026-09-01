@@ -97,6 +97,9 @@ struct AppState {
   int8_t rssi;       // dBm
   uint32_t uptimeSec;
 
+  // BATTERY ---------------------------------------------------------------------
+  uint8_t batteryPct; // 0/25/50/75/100, or BATTERY_UNKNOWN
+
   // WEATHER (Open-Meteo; weather.cpp) -------------------------------------------------------
   WeatherData weather;
 

@@ -91,6 +91,24 @@ static void drawWifi(Adafruit_GFX &g, int16_t x, int16_t y, bool connected) {
   g.drawBitmap(x, y, icon_wifi, ICON_WIFI_W, ICON_WIFI_H, COL_FG, COL_BG);
 }
 
+static const unsigned char *battIcon(uint8_t pct) {
+  if (pct >= 100)
+    return icon_batt_100;
+  if (pct >= 75)
+    return icon_batt_75;
+  if (pct >= 50)
+    return icon_batt_50;
+  if (pct >= 25)
+    return icon_batt_25;
+  return icon_batt_0;
+}
+
+static void drawBattery(Adafruit_GFX &g, int16_t x, int16_t y, uint8_t pct) {
+  if (pct == BATTERY_UNKNOWN)
+    return;
+  g.drawBitmap(x, y, battIcon(pct), ICON_BATT_W, ICON_BATT_H, COL_FG, COL_BG);
+}
+
 // Draws text so its right edge is always aligned right, regardless of text length.
 static void printRightAligned(Adafruit_GFX &g, const char *s, int16_t right, int16_t y) {
   int16_t bx, by;
@@ -99,8 +117,9 @@ static void printRightAligned(Adafruit_GFX &g, const char *s, int16_t right, int
   printAt(g, s, right - (int16_t)bw - bx, y);
 }
 
-// Title, subtitle, rule and Wi-Fi icon. Shared by TASKS / WEATHER / MARKETS.
-static void drawHeader(Adafruit_GFX &g, const char *title, const char *subtitle, bool wifiConnected) {
+// Title, subtitle, rule and Wi-Fi + battery icons. Shared by TASKS / WEATHER / MARKETS.
+static void drawHeader(Adafruit_GFX &g, const char *title, const char *subtitle, bool wifiConnected,
+                       uint8_t batteryPct) {
   g.setTextColor(COL_FG);
 
   g.setTextSize(HDR_TITLE_SIZE);
@@ -111,6 +130,7 @@ static void drawHeader(Adafruit_GFX &g, const char *title, const char *subtitle,
 
   g.drawLine(HDR_RULE_X0, HDR_RULE_Y, HDR_RULE_X1, HDR_RULE_Y, COL_FG);
 
+  drawBattery(g, HDR_BATT_X, HDR_BATT_Y, batteryPct);
   drawWifi(g, HDR_WIFI_X, HDR_WIFI_Y, wifiConnected);
 }
 
@@ -126,6 +146,7 @@ void drawClock(Adafruit_GFX &g, const AppState &s) {
   if (!s.timeSynced) {
     g.setTextSize(3);
     printCentered(g, "WAITING FOR NTP", CLOCK_NOSYNC_Y);
+    drawBattery(g, CLOCK_BATT_X, CLOCK_BATT_Y, s.batteryPct);
     drawWifi(g, CLOCK_WIFI_X, CLOCK_WIFI_Y, s.wifiConnected);
     return;
   }
@@ -160,6 +181,7 @@ void drawClock(Adafruit_GFX &g, const AppState &s) {
     printCentered(g, s.clockDate, CLOCK_DATE_Y);
   }
 
+  drawBattery(g, CLOCK_BATT_X, CLOCK_BATT_Y, s.batteryPct);
   drawWifi(g, CLOCK_WIFI_X, CLOCK_WIFI_Y, s.wifiConnected);
 }
 
@@ -169,7 +191,7 @@ void drawTasks(Adafruit_GFX &g, const AppState &s) {
 
   g.setFont(&Org_01);
   g.setTextWrap(false);
-  drawHeader(g, "TASKS", s.tasksDate, s.wifiConnected);
+  drawHeader(g, "TASKS", s.tasksDate, s.wifiConnected, s.batteryPct);
 
   uint8_t done = 0;
   for (uint8_t i = 0; i < s.taskCount && i < MAX_TASKS; i++) {
@@ -282,7 +304,7 @@ void drawWeather(Adafruit_GFX &g, const AppState &s) {
   g.setTextWrap(false);
 
   const char *sub = w.configured ? w.location : "NO LOCATION SET";
-  drawHeader(g, "WEATHER", sub, s.wifiConnected);
+  drawHeader(g, "WEATHER", sub, s.wifiConnected, s.batteryPct);
   g.setTextColor(COL_FG);
 
   // Nothing to draw yet
@@ -366,7 +388,7 @@ void drawMarkets(Adafruit_GFX &g, const AppState &s) {
                       : !m.valid     ? "CONNECTING"
                       : m.marketOpen ? "NYSE OPEN"
                                      : "NYSE CLOSED";
-  drawHeader(g, "MARKETS", state, s.wifiConnected);
+  drawHeader(g, "MARKETS", state, s.wifiConnected, s.batteryPct);
   g.setTextColor(COL_FG);
 
   // Nothing to draw yet
@@ -450,7 +472,7 @@ void drawInfo(Adafruit_GFX &g, const AppState &s) {
   g.setFont(&Org_01);
   g.setTextWrap(false);
 
-  drawHeader(g, "INFO", s.wifiConnected ? "CONNECTED" : "CONNECTING...", s.wifiConnected);
+  drawHeader(g, "INFO", s.wifiConnected ? "CONNECTED" : "CONNECTING...", s.wifiConnected, s.batteryPct);
 
   g.setTextColor(COL_FG);
 

@@ -34,6 +34,7 @@ static uint32_t g_drawnInfoMinute = 0xFFFFFFFF;
 static uint32_t g_lastScreenSwitch = 0;
 static uint32_t g_lastNetPoll = 0;
 static uint32_t g_lastClockPoll = 0;
+static uint32_t g_lastBattPoll = 0;
 static bool g_drawnSynced = false;
 
 // Cached from NVS, re-read when the web page pushes a change.
@@ -231,6 +232,27 @@ static ButtonEvent pollButton() {
   return BTN_NONE;
 }
 
+// Averaged, since a single ADC read swings by tens of millivolts. Li-ion
+// doesn't fall linearly, so these steps are uneven.
+static uint8_t batteryLevel() {
+  uint32_t sum = 0;
+  for (uint8_t i = 0; i < 8; i++) {
+    sum += analogReadMilliVolts(BATTERY_PIN);
+  }
+
+  const float v = (sum / 8.0f / 1000.0f) * BATTERY_DIVIDER;
+
+  if (v >= 4.05f)
+    return 100;
+  if (v >= 3.90f)
+    return 75;
+  if (v >= 3.75f)
+    return 50;
+  if (v >= 3.60f)
+    return 25;
+  return 0;
+}
+
 void setup() {
   Serial.begin(115200);
   delay(SERIAL_BOOT_SETTLE_MS); // let the USB host attach before printing
@@ -261,6 +283,9 @@ void setup() {
   wifiBegin();
   copyNetworkIntoState();
 
+  g_state.batteryPct = BATTERY_UNKNOWN;
+  g_lastBattPoll = millis() - BATTERY_POLL_MS + 5000;
+
   if (!g_rotationEnabled[g_screen]) {
     for (uint8_t i = 0; i < SCREEN_ROTATION_COUNT; i++) {
       if (g_rotationEnabled[i]) {
@@ -286,6 +311,17 @@ void loop() {
   if (millis() - g_lastClockPoll >= CLOCK_POLL_MS) {
     g_lastClockPoll = millis();
     copyTimeIntoState();
+  }
+
+  if (millis() - g_lastBattPoll >= BATTERY_POLL_MS) {
+    g_lastBattPoll = millis();
+    const uint8_t was = g_state.batteryPct;
+    g_state.batteryPct = batteryLevel();
+
+    if (g_state.batteryPct != was) {
+      redrawFull("battery level changed");
+      return;
+    }
   }
 
   // Wi-Fi came up or dropped

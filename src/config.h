@@ -17,6 +17,32 @@
 // 3s hold     - reset: wipes every stored setting
 #define BUTTON_PIN 9
 
+// BATTERY --------------------------------------------------------------------
+// Cell voltage through an 82k/82k divider, so the ADC sees half of it.
+constexpr uint8_t BATTERY_PIN = 3;
+constexpr float BATTERY_DIVIDER = 2.0f;
+constexpr uint32_t BATTERY_POLL_MS = 60000;
+constexpr uint8_t BATTERY_SAMPLES = 8; // a single read could swing by tens of mV
+
+// Below this the device couldn't be running.
+constexpr float BATTERY_MIN_VALID = 2.5f;
+constexpr uint8_t BATTERY_UNKNOWN = 255;
+
+// Li-ion doesn't fall linearly. It sits near 3.8V for most of its life, so the
+// middle steps are narrower than the ends.
+constexpr float BATTERY_V_100 = 4.05f;
+constexpr float BATTERY_V_75 = 3.90f;
+constexpr float BATTERY_V_50 = 3.75f;
+constexpr float BATTERY_V_25 = 3.60f;
+
+// Icon, left of the Wi-Fi glyph
+constexpr int16_t ICON_BATT_W = 23;
+constexpr int16_t ICON_BATT_H = 13;
+constexpr int16_t HDR_BATT_X = 335;
+constexpr int16_t HDR_BATT_Y = 23;
+constexpr int16_t CLOCK_BATT_X = 345;
+constexpr int16_t CLOCK_BATT_Y = 12;
+
 // PANEL  --------------------------------------------------------------
 constexpr int16_t SCREEN_W = 400;
 constexpr int16_t SCREEN_H = 300;
