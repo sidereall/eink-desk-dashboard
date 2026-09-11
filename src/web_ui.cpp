@@ -15,6 +15,7 @@
 #include "timezones.h"
 #include "weather.h"
 #include "web_ui.h"
+#include "wifi_net.h"
 
 static WebServer server(80);
 static bool s_running = false;
@@ -186,6 +187,25 @@ static void handleUnitsPost() {
   weatherRequestFetch();  // refetch so the values match the unit
   s_syncRequested = true;
   server.send(200, "text/plain", "ok");
+}
+
+// Live device state for the page's status strip.
+static void handleStatus() {
+  WifiStatus w;
+  wifiGetStatus(w);
+
+  char now[8];
+  struct tm t;
+  if (clockGetLocal(t))
+    strftime(now, sizeof(now), "%H:%M", &t);
+  else
+    snprintf(now, sizeof(now), "--:--");
+
+  char body[192];
+  snprintf(body, sizeof(body), "{\"ip\":\"%s\",\"wifi\":%s,\"rssi\":%d,\"batt\":%u,\"time\":\"%s\",\"screen\":\"%s\"}",
+           w.ip, w.connected ? "true" : "false", (int)w.rssi, (unsigned)webStatusBattery(), now,
+           screenName(webStatusScreen()));
+  server.send(200, "application/json", body);
 }
 
 // Reports whether a key is set, never the key itself.
@@ -388,6 +408,7 @@ void webBegin() {
     server.on("/api/markets", HTTP_GET, handleMarketsGet);
     server.on("/api/markets", HTTP_POST, handleMarketsPost);
     server.on("/api/dismiss", HTTP_POST, handleDismiss);
+    server.on("/api/status", HTTP_GET, handleStatus);
     server.onNotFound([]() { server.send(404, "text/plain", "not found"); });
     s_handlersRegistered = true;
   }

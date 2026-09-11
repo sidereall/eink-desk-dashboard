@@ -4,12 +4,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>E-ink Desk Dashboard</title>
+  <title>Desk Dashboard</title>
   <style>
     @font-face {
       font-family: 'Micro5';
       src: url('/font') format('truetype');
-      font-display: block;
+      font-display: swap;
     }
 
     :root {
@@ -22,29 +22,33 @@
       --field: #fafaf9;
       --hover: #2b2b2a;
 
-      --r-card: 16px;
+      --r-card: 12px;
       --r-el: 10px;
       --font: 'Micro5', -apple-system, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
 
       /* Text sizes */
       --t-body: 1.46rem;
-      --t-title: 2.5rem;
-      --t-head: 1.46rem;
-      --t-label: 1.35rem;
-      --t-small: 1.25rem;
-      --t-field: 1.3rem;
-      --t-note: 1.15rem;
+      --t-title: 2.03rem;
+      --t-row: 1.35rem;
+      --t-note: 1.1rem;
+      --t-small: 1.18rem;
+      --t-field: 1.24rem;
+      --t-stat: 1.7rem;
 
-      /* Spacing. --gap is the distance between items inside a panel. */
+      /* Spacing */
       --gap: .62rem;
-      --pad-card: 1.52rem 1.58rem;
+      --pad-row: 1rem 1.25rem;
       --space: 1.01rem;
 
+      /* Theme extras that aren't part of the palette */
       --on-ink: #ffffff;
       --shadow: rgba(0, 0, 0, .03);
       --ring: rgba(17, 17, 17, .08);
+      --ok: #2f7d54;
     }
 
+    /* Follows the operating system's setting. Only the variables change, so
+       every rule below works in both themes untouched. */
     @media (prefers-color-scheme: dark) {
       :root {
         --bg: #131315;
@@ -59,6 +63,7 @@
         --on-ink: #131315;
         --shadow: rgba(0, 0, 0, .25);
         --ring: rgba(236, 236, 234, .12);
+        --ok: #5dca9a;
       }
     }
 
@@ -87,9 +92,14 @@
       -webkit-font-smoothing: antialiased;
     }
 
+    /* MASTHEAD ------------------------------------------------------------ */
     header {
-      margin: 0 .28rem 2.25rem;
-      text-align: center;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin: 0 0 1.5rem;
     }
 
     h1 {
@@ -98,60 +108,161 @@
       margin: 0;
     }
 
-    /* CARDS */
-    section {
+    /* The device's address, with a dot that reflects the connection. */
+    .addr {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: var(--t-note);
+      color: var(--mid);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--soft);
+      flex-shrink: 0;
+    }
+
+    .dot.up {
+      background: var(--ok);
+    }
+
+    /* STATUS STRIP -------------------------------------------------------- */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .6rem;
+      margin: 0 0 1.6rem;
+    }
+
+    .stat {
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: var(--r-card);
-      padding: var(--pad-card);
-      margin: var(--space) 0;
-      box-shadow: 0 1px 2px var(--shadow);
+      padding: .8rem .9rem;
     }
 
-    h2 {
-      font-size: var(--t-head);
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .1em;
+    .stat .k {
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+      font-size: var(--t-note);
+      color: var(--soft);
+      margin-bottom: .2rem;
+    }
+
+    .stat .v {
+      font-size: var(--t-stat);
       color: var(--ink);
-      margin: 0 0 var(--space);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    /* SPACING */
-    label,
-    .m,
-    #tl,
-    .search {
-      margin: var(--gap) 0;
-    }
-
-    section>*:first-child,
-    .panel-body>*:first-child {
-      margin-top: 0;
-    }
-
-    section>*:last-child,
-    .panel-body>*:last-child {
-      margin-bottom: 0;
-    }
-
-    /* The search box has no label above it, so it needs a added space to line up
-       with the other panels. */
-    .panel-body>.search:first-child {
-      margin-top: .34rem;
-    }
-
-    /* FIELDS */
-    label {
-      display: block;
-      font-size: var(--t-label);
-    }
-
-    label small {
-      display: block;
-      font-size: var(--t-small);
+    .stat .v small {
+      font-size: var(--t-note);
       color: var(--mid);
-      margin-bottom: .28rem;
+    }
+
+    /* SECTION LIST -------------------------------------------------------- */
+    .panels {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--r-card);
+      overflow: hidden;
+    }
+
+    .panels>section+section {
+      border-top: 1px solid var(--line);
+    }
+
+    /* The open panel is tinted, so it reads without checking the chevron. */
+    section.open {
+      background: var(--bg);
+    }
+
+    /* The clickable row. It stays a row whether the panel is open or not. */
+    .row {
+      display: flex;
+      align-items: center;
+      gap: .7rem;
+      padding: var(--pad-row);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .row:hover .name {
+      color: var(--mid);
+    }
+
+    .row .ico {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      color: var(--mid);
+    }
+
+    .name {
+      flex: 1;
+      font-size: var(--t-row);
+      color: var(--ink);
+    }
+
+    /* What the section is currently set to, shown without opening it. */
+    .sum {
+      font-size: var(--t-note);
+      color: var(--mid);
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 45%;
+    }
+
+    .chev {
+      width: 10px;
+      height: 10px;
+      flex-shrink: 0;
+      border-right: 1.6px solid var(--soft);
+      border-bottom: 1.6px solid var(--soft);
+      transform: rotate(45deg) translate(-2px, -2px);
+      transition: transform .2s ease;
+    }
+
+    section.open .chev {
+      transform: rotate(225deg) translate(-2px, -2px);
+    }
+
+    /* Collapsed with max-height rather than display:none, so the script can
+       still populate fields inside a closed panel. */
+    .body {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height .28s ease, opacity .2s ease;
+    }
+
+    section.open .body {
+      max-height: 60rem;
+      opacity: 1;
+    }
+
+    /* Indented to line up with the section name, not the icon. */
+    .body>.inner {
+      padding: 0 1.25rem 1.25rem 3.2rem;
+    }
+
+    /* FIELDS -------------------------------------------------------------- */
+    .lbl {
+      font-size: var(--t-note);
+      color: var(--soft);
+      margin: 0 0 .3rem;
+    }
+
+    .lbl+.lbl {
+      margin-top: var(--gap);
     }
 
     select,
@@ -175,6 +286,7 @@
       background-position: right .9rem center;
     }
 
+    /* The chevron is a data URI, so its colour can't come from a variable. */
     @media (prefers-color-scheme: dark) {
       select {
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239a9a95' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -203,10 +315,25 @@
       color: var(--soft);
     }
 
-    label:has(input[type=radio]) {
+    .field {
+      margin-bottom: var(--gap);
+    }
+
+    /* Radios and checkboxes, so the control stays centred on its text. */
+    .opt {
       display: flex;
       align-items: center;
-      gap: .56rem;
+      gap: .5rem;
+      font-size: var(--t-row);
+      margin: .35rem 0;
+      cursor: pointer;
+    }
+
+    .opts {
+      display: flex;
+      gap: 1.4rem;
+      flex-wrap: wrap;
+      margin-bottom: var(--gap);
     }
 
     input[type=checkbox],
@@ -218,12 +345,12 @@
       accent-color: var(--ink);
     }
 
-    /* BUTTONS */
+    /* BUTTONS ------------------------------------------------------------- */
     button {
       font-size: var(--t-field);
       font-weight: 600;
       line-height: 1;
-      padding: .74rem 1.29rem;
+      padding: .7rem 1.2rem;
       cursor: pointer;
       color: var(--on-ink);
       background: var(--ink);
@@ -242,116 +369,57 @@
       transform: scale(.98);
     }
 
+    /* Secondary, for search rather than save. */
+    button.ghost {
+      color: var(--ink);
+      background: transparent;
+      border-color: var(--line);
+    }
+
+    button.ghost:hover {
+      color: var(--ink);
+      background: var(--field);
+      border-color: var(--soft);
+    }
+
     .actions {
       display: flex;
       align-items: center;
       flex-wrap: wrap;
-      gap: .9rem;
-      margin: var(--space) 0 0;
+      gap: .8rem;
+      margin-top: var(--space);
     }
 
-    /* TOGGLE SWITCH */
-    .switch {
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      gap: .7rem;
-      cursor: pointer;
-    }
-
-    .switch input {
-      position: absolute;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .track {
-      display: flex;
-      align-items: center;
-      flex-shrink: 0;
-      width: 1.7em;
-      height: .85em;
-      padding: .1em;
-      background: var(--field);
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      transition: background .15s, border-color .15s;
-    }
-
-    .track::after {
-      content: "";
-      width: .65em;
-      height: .65em;
-      background: var(--soft);
-      border-radius: 50%;
-      box-shadow: 0 1px 2px var(--shadow);
-      transition: transform .18s cubic-bezier(.4, 0, .2, 1), background .15s;
-      flex: none;
-    }
-
-    .switch input:checked+.track {
-      background: var(--ink);
-      border-color: var(--ink);
-    }
-
-    .switch input:checked+.track::after {
-      background: var(--card);
-      transform: translateX(calc(.85em - 2px));
-    }
-
-    .switch input:focus-visible+.track {
-      outline: 2px solid var(--ink);
-      outline-offset: 2px;
-    }
-
-    /* STATUS TEXT */
     .m {
       font-size: var(--t-note);
       color: var(--mid);
     }
 
     .ok {
-      color: var(--ink);
-      font-weight: 500;
-    }
-
-    span.ok::before {
-      content: "\2713\00a0";
-    }
-
-    /* Values read back from the device. */
-    .readout,
-    #mkst,
-    #wn {
-      font-size: var(--t-note);
-      color: var(--ink);
+      color: var(--ok);
     }
 
     [disabled] {
       opacity: .45;
     }
 
-    /* TASK ROWS */
-    .row {
+    /* TASK ROWS ----------------------------------------------------------- */
+    .task {
       display: flex;
       align-items: center;
-      gap: .68rem;
-      margin: .45rem 0;
+      gap: .6rem;
+      margin: .4rem 0;
     }
 
-    .row:first-child {
+    .task:first-child {
       margin-top: 0;
     }
 
-    .row:last-child {
-      margin-bottom: 0;
-    }
-
-    .row input[type=text] {
+    .task input[type=text] {
       flex: 1;
     }
 
-    .row input:disabled {
+    .task input:disabled {
       background: var(--bg);
       color: var(--soft);
       text-decoration: line-through;
@@ -359,8 +427,8 @@
     }
 
     .del {
-      padding: .45rem .7rem;
-      font-size: 1.58rem;
+      padding: .4rem .65rem;
+      font-size: var(--t-row);
       line-height: 1;
       color: var(--soft);
       background: transparent;
@@ -374,10 +442,11 @@
       border-color: var(--line);
     }
 
-    /* WEATHER SEARCH */
+    /* SEARCH -------------------------------------------------------------- */
     .search {
       display: flex;
-      gap: .68rem;
+      gap: .6rem;
+      margin-bottom: var(--gap);
     }
 
     .search input {
@@ -397,59 +466,24 @@
       color: var(--mid);
     }
 
-    /* ACCORDION */
-    section.acc>h2 {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin: 0;
-      cursor: pointer;
-      user-select: none;
-    }
+    @media (max-width: 34rem) {
+      .stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
 
-    section.acc>h2:hover {
-      color: var(--mid);
-    }
+      .body>.inner {
+        padding-left: 1.25rem;
+      }
 
-    /* Divider under header */
-    section.acc.open>h2 {
-      padding-bottom: .79rem;
-      margin-bottom: var(--space);
-      border-bottom: 1px solid var(--line);
-    }
-
-    .chev {
-      width: 12px;
-      height: 12px;
-      flex-shrink: 0;
-      margin: -3px 0 0 .9rem;
-      border-right: 1.6px solid currentColor;
-      border-bottom: 1.6px solid currentColor;
-      transform: rotate(45deg);
-      transition: transform .2s ease;
-    }
-
-    section.acc.open .chev {
-      margin-top: 2px;
-      transform: rotate(225deg);
-    }
-
-    .panel-body {
-      overflow: hidden;
-      max-height: 0;
-      opacity: 0;
-      transition: max-height .28s ease, opacity .2s ease;
-    }
-
-    section.acc.open .panel-body {
-      max-height: 60rem;
-      opacity: 1;
+      .sum {
+        max-width: 38%;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
 
       *,
-      .panel-body,
+      .body,
       .chev {
         transition: none !important;
       }
@@ -463,108 +497,204 @@
 
 <body>
   <header>
-    <h1>E-INK DESK DASHBOARD</h1>
+    <h1>DESK DASHBOARD</h1>
+    <span class="addr"><span id="dot" class="dot"></span><span id="ip">&mdash;</span></span>
   </header>
 
-  <!-- Shown until the panel's info screen is dismissed. -->
-  <section id="infoCard">
-    <h2>INFO SCREEN</h2>
-    <p class="m">WELCOME! TO DISMISS THE INFO SCREEN, CLICK THE BUTTON BELOW</p>
-    <div class="actions">
-      <button onclick="dismiss()">DISMISS</button> <span id="dr" class="m"></span>
+  <div class="stats">
+    <div class="stat">
+      <div class="k">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" width="13" height="13"
+          aria-hidden="true">
+          <rect x="2" y="8" width="16" height="9" rx="2" />
+          <path d="M20 11v3" />
+          <path d="M5 11v3M9 11v3" />
+        </svg>
+        BATTERY
+      </div>
+      <div class="v" id="sBatt">&mdash;</div>
     </div>
-  </section>
-
-  <section class="acc">
-    <h2 onclick="toggleAcc(this.parentElement)">CLOCK<span class="chev"></span></h2>
-    <div class="panel-body">
-      <label><small>TIME ZONE</small><select id="tz"></select></label>
-      <label class="switch">
-        <span>SHOW THE DATE ON THE CLOCK SCREEN</span>
-        <input type="checkbox" id="sd"><span class="track"></span>
-      </label>
-      <p class="m">DEVICE TIME: <span id="now" class="readout">&mdash;</span></p>
-      <div class="actions">
-        <button onclick="syncClock()">SAVE</button> <span id="cr" class="m"></span>
+    <div class="stat">
+      <div class="k">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" width="13" height="13"
+          aria-hidden="true">
+          <path d="M12 18h.01" />
+          <path d="M9.2 15.2a4 4 0 0 1 5.6 0" />
+          <path d="M6.3 12.3a8 8 0 0 1 11.4 0" />
+          <path d="M3.5 9.5a12 12 0 0 1 17 0" />
+        </svg>
+        SIGNAL
       </div>
+      <div class="v" id="sRssi">&mdash;</div>
     </div>
-  </section>
-
-  <section class="acc">
-    <h2 onclick="toggleAcc(this.parentElement)">TASKS<span class="chev"></span></h2>
-    <div class="panel-body">
-      <div id="tl"></div>
-      <div class="actions">
-        <button onclick="sendTasks()">SAVE</button> <span id="tr" class="m"></span>
+    <div class="stat">
+      <div class="k">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" width="13" height="13"
+          aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+        DEVICE TIME
       </div>
+      <div class="v" id="sTime">&mdash;</div>
     </div>
-  </section>
-
-  <section class="acc">
-    <h2 onclick="toggleAcc(this.parentElement)">WEATHER<span class="chev"></span></h2>
-    <div class="panel-body">
-      <div class="search">
-        <input id="wq" type="text" placeholder="SEARCH FOR A TOWN OR CITY" onkeydown="if(event.key==='Enter')geocode()">
-        <button onclick="geocode()">SEARCH</button>
+    <div class="stat">
+      <div class="k">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" width="13" height="13"
+          aria-hidden="true">
+          <rect x="3" y="5" width="18" height="13" rx="2" />
+          <path d="M9 21h6" />
+        </svg>
+        SHOWING
       </div>
-      <label id="lwl" style="display:none">
-        <small>MATCHES</small><select id="wl" onchange="pickPlace()"></select>
-      </label>
-      <p class="m">LOCATION: <b id="wn">NOT SET</b></p>
-      <label><input type="radio" name="unit" value="0" id="uc" checked> CELSIUS</label>
-      <label><input type="radio" name="unit" value="1" id="uf"> FAHRENHEIT</label>
-      <div class="actions">
-        <button onclick="sendWx()">SAVE</button> <span id="wr" class="m"></span>
-      </div>
+      <div class="v" id="sScreen">&mdash;</div>
     </div>
-  </section>
+  </div>
 
-  <section class="acc">
-    <h2 onclick="toggleAcc(this.parentElement)">MARKETS<span class="chev"></span></h2>
-    <div class="panel-body">
-      <p class="m">SHOWS A US-LISTED SYMBOL FROM
-        <a href="https://twelvedata.com" target="_blank" rel="noopener">TWELVE DATA</a>. NEEDS A FREE API KEY.
-      </p>
-      <label><small>API KEY</small><input type="password" id="mk" placeholder="PASTE YOUR API KEY"
-          autocomplete="off"></label>
-      <p class="m">KEY STATUS: <b id="mkst">NOT SET</b></p>
+  <div class="panels">
 
-      <div class="search">
-        <input id="msq" type="text" placeholder="SEARCH FOR A SYMBOL" onkeydown="if(event.key==='Enter')symSearch()">
-        <button onclick="symSearch()">SEARCH</button>
+    <section id="secClock">
+      <div class="row" onclick="toggle(this.parentElement)">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+        <span class="name">CLOCK</span>
+        <span class="sum" id="sumClock"></span>
+        <span class="chev"></span>
       </div>
-      <label id="lmsl" style="display:none">
-        <small>MATCHES</small><select id="msl" onchange="pickSymbol()"></select>
-      </label>
-      <p class="m">SYMBOL: <b id="msym">SPY</b></p>
-
-      <div class="actions">
-        <button onclick="sendMarket()">SAVE</button> <span id="mkr" class="m"></span>
+      <div class="body">
+        <div class="inner">
+          <p class="lbl">TIME ZONE</p>
+          <div class="field"><select id="tz"></select></div>
+          <label class="opt"><input type="checkbox" id="sd"> SHOW THE DATE</label>
+          <div class="actions">
+            <button onclick="syncClock()">SAVE</button> <span id="cr" class="m"></span>
+          </div>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="acc">
-    <h2 onclick="toggleAcc(this.parentElement)">DISPLAY<span class="chev"></span></h2>
-    <div class="panel-body">
-      <label><input type="radio" name="dm" value="0" id="dm0" onchange="modeChanged()"> CYCLE THROUGH SCREENS</label>
-      <label><input type="radio" name="dm" value="1" id="dm1" onchange="modeChanged()"> SHOW ONE SCREEN ONLY</label>
-      <label class="switch">
-        <span>DARK MODE</span>
-        <input type="checkbox" id="dk"><span class="track"></span>
-      </label>
-      <label id="lss"><small>SCREEN</small><select id="ss"></select></label>
-      <label id="ldw"><small>TIME BETWEEN SCREEN CHANGES</small><select id="dw"></select></label>
-      <div class="actions">
-        <button onclick="syncDisplay()">SAVE</button> <span id="sr" class="m"></span>
+    <section id="secTasks">
+      <div class="row" onclick="toggle(this.parentElement)">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+          <rect x="4" y="4" width="16" height="16" rx="2" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+        <span class="name">TASKS</span>
+        <span class="sum" id="sumTasks"></span>
+        <span class="chev"></span>
       </div>
-    </div>
-  </section>
+      <div class="body">
+        <div class="inner">
+          <div id="tl"></div>
+          <div class="actions">
+            <button onclick="sendTasks()">SAVE</button> <span id="tr" class="m"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="secWeather">
+      <div class="row" onclick="toggle(this.parentElement)">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+          <path d="M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.5A3.5 3.5 0 0 1 18 18H7z" />
+        </svg>
+        <span class="name">WEATHER</span>
+        <span class="sum" id="sumWeather"></span>
+        <span class="chev"></span>
+      </div>
+      <div class="body">
+        <div class="inner">
+          <p class="lbl">LOCATION</p>
+          <div class="search">
+            <input id="wq" type="text" placeholder="SEARCH FOR A TOWN OR CITY"
+              onkeydown="if(event.key==='Enter')geocode()">
+            <button class="ghost" onclick="geocode()">SEARCH</button>
+          </div>
+          <div class="field" id="lwl" style="display:none"><select id="wl" onchange="pickPlace()"></select></div>
+          <p class="m">SET TO: <b id="wn">NOT SET</b></p>
+          <p class="lbl">UNITS</p>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="unit" id="uc" checked> CELSIUS</label>
+            <label class="opt"><input type="radio" name="unit" id="uf"> FAHRENHEIT</label>
+          </div>
+          <div class="actions">
+            <button onclick="sendWx()">SAVE</button> <span id="wr" class="m"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="secMarkets">
+      <div class="row" onclick="toggle(this.parentElement)">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+          <path d="M4 18l5-6 4 3 6-8" />
+          <path d="M4 20h16" />
+        </svg>
+        <span class="name">MARKETS</span>
+        <span class="sum" id="sumMarkets"></span>
+        <span class="chev"></span>
+      </div>
+      <div class="body">
+        <div class="inner">
+          <p class="m">NEEDS A FREE <a href="https://twelvedata.com" target="_blank" rel="noopener">TWELVE DATA</a> API
+            KEY.</p>
+          <p class="lbl">API KEY</p>
+          <div class="field"><input type="password" id="mk" placeholder="PASTE YOUR API KEY" autocomplete="off"></div>
+          <p class="m">KEY STATUS: <b id="mkst">NOT SET</b></p>
+          <p class="lbl">SYMBOL</p>
+          <div class="search">
+            <input id="msq" type="text" placeholder="SEARCH A US STOCK OR ETF"
+              onkeydown="if(event.key==='Enter')symSearch()">
+            <button class="ghost" onclick="symSearch()">SEARCH</button>
+          </div>
+          <div class="field" id="lmsl" style="display:none"><select id="msl" onchange="pickSymbol()"></select></div>
+          <p class="m">SET TO: <b id="msym">SPY</b></p>
+          <div class="actions">
+            <button onclick="sendMarket()">SAVE</button> <span id="mkr" class="m"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="secDisplay">
+      <div class="row" onclick="toggle(this.parentElement)">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+          <path d="M4 6h16M4 12h16M4 18h16" />
+          <circle cx="9" cy="6" r="2" />
+          <circle cx="15" cy="12" r="2" />
+          <circle cx="8" cy="18" r="2" />
+        </svg>
+        <span class="name">DISPLAY</span>
+        <span class="sum" id="sumDisplay"></span>
+        <span class="chev"></span>
+      </div>
+      <div class="body">
+        <div class="inner">
+          <p class="lbl">ROTATION</p>
+          <label class="opt"><input type="radio" name="dm" value="0" id="dm0" onchange="modeChanged()"> CYCLE THROUGH
+            SCREENS</label>
+          <label class="opt"><input type="radio" name="dm" value="1" id="dm1" onchange="modeChanged()"> SHOW ONE SCREEN
+            ONLY</label>
+          <p class="lbl" id="lss">SCREEN</p>
+          <div class="field"><select id="ss"></select></div>
+          <p class="lbl" id="ldw">TIME BETWEEN SCREEN CHANGES</p>
+          <div class="field"><select id="dw"></select></div>
+          <label class="opt"><input type="checkbox" id="dk"> DARK MODE ON THE PANEL</label>
+          <div class="actions">
+            <button onclick="syncDisplay()">SAVE</button> <span id="sr" class="m"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
 
   <script>
     const esc = s => s.replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/</g, '&lt;');
     const deaccent = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const get = (url) => fetch(url).then(r => r.json());
+    const get = url => fetch(url).then(r => r.json());
 
     // Shows the result of a save next to its button.
     function status(el, ok, okText = 'SAVED', failText = 'FAILED') {
@@ -572,11 +702,26 @@
       el.className = ok ? 'm ok' : 'm';
     }
 
-    // Open one panel and close the others.
-    function toggleAcc(section) {
+    // Open one section and close the others.
+    function toggle(section) {
       const wasOpen = section.classList.contains('open');
-      document.querySelectorAll('section.acc.open').forEach(s => s.classList.remove('open'));
+      document.querySelectorAll('.panels section.open').forEach(s => s.classList.remove('open'));
       if (!wasOpen) section.classList.add('open');
+    }
+
+    // STATUS STRIP -----------------------------------------------------
+    // Live device state, refreshed on a timer. Also fills the address in the
+    // header, so the info card isn't needed.
+    async function loadStatus() {
+      try {
+        const s = await get('/api/status');
+        ip.textContent = s.ip;
+        dot.className = s.wifi ? 'dot up' : 'dot';
+        sBatt.innerHTML = s.batt > 100 ? '&mdash;' : s.batt + '<small>%</small>';
+        sRssi.innerHTML = s.wifi ? s.rssi + '<small> DBM</small>' : '&mdash;';
+        sTime.textContent = s.time;
+        sScreen.textContent = s.screen;
+      } catch (e) { }
     }
 
     // CLOCK ------------------------------------------------------------
@@ -593,11 +738,12 @@
 
     function drawTasks() {
       tl.innerHTML = TASKS.map((t, i) =>
-        `<div class="row">
+        `<div class="task">
            <input type="checkbox" ${t.done ? 'checked' : ''} onchange="TASKS[${i}].done=this.checked;drawTasks()">
            <input type="text" maxlength="47" value="${esc(t.title)}" placeholder="..." ${t.done ? 'disabled' : ''} oninput="TASKS[${i}].title=this.value">
            <button class="del" onclick="delTask(${i})" title="Delete">&times;</button>
          </div>`).join('');
+      sumTasks.textContent = TASKS.filter(t => t.title).length + ' SET';
     }
 
     // Removing a task shifts the rest up and leaves an empty slot at the end.
@@ -635,9 +781,8 @@
     let GEO = [];
 
     function showWx() {
-      wn.textContent = WX.name
-        ? `${WX.name} (${(+WX.lat).toFixed(2)}, ${(+WX.lon).toFixed(2)})`
-        : 'NOT SET';
+      wn.textContent = WX.name || 'NOT SET';
+      sumWeather.textContent = (WX.name || 'NOT SET');
     }
 
     async function geocode() {
@@ -671,21 +816,23 @@
       const p = GEO[wl.value];
       if (!p) return;
       // Accents are stripped because the panel font is ASCII only.
-      WX = { lat: p.latitude, lon: p.longitude, name: deaccent(p.name) };
+      WX = { lat: p.latitude, lon: p.longitude, name: deaccent(p.name).toUpperCase() };
       showWx();
     }
 
     async function loadWx() {
       const w = await get('/api/weather');
-      WX = { lat: w.lat, lon: w.lon, name: w.name };
+      WX = { lat: w.lat, lon: w.lon, name: (w.name || '').toUpperCase() };
       showWx();
     }
 
+    // The unit saves either way, so it can be changed before a location is set.
     async function sendWx() {
       await fetch('/api/units?f=' + (uf.checked ? 1 : 0), { method: 'POST' });
+      showWx();
 
       if (!WX.name) {
-        wr.textContent = 'SEARCH FOR A TOWN OR CITY';
+        wr.textContent = 'UNIT SAVED, NOW SEARCH FOR A TOWN';
         wr.className = 'm';
         return;
       }
@@ -697,17 +844,12 @@
     }
 
     async function loadUnits() {
-      wf.checked = (await get('/api/units')).fahrenheit;
-    }
-
-    async function loadUnits() {
       const u = await get('/api/units');
       (u.fahrenheit ? uf : uc).checked = true;
     }
 
     // MARKETS ----------------------------------------------------------
-    // The symbol search happens here rather than on the device, same as the
-    // weather location lookup.
+    // The symbol search happens here too, same pattern as the weather lookup.
     let SYM = '';
     let SYMS = [];
 
@@ -717,6 +859,7 @@
       mkst.className = m.configured ? 'ok' : '';
       SYM = m.symbol;
       msym.textContent = SYM;
+      sumMarkets.textContent = m.configured ? SYM : 'NO KEY';
     }
 
     async function symSearch() {
@@ -733,8 +876,7 @@
         SYMS = [];
       }
 
-      // The free tier covers US-listed instruments only. Filtering by country
-      // drops the international listings that would fail at fetch time.
+      // The free tier covers US markets, so anything else would fail at fetch.
       SYMS = SYMS.filter(s => s.country === 'United States');
 
       if (!SYMS.length) {
@@ -757,6 +899,8 @@
       msym.textContent = SYM;
     }
 
+    // The key is only sent when the field has something in it, so the symbol
+    // can be changed without re-entering it.
     async function sendMarket() {
       const key = mk.value.trim();
       const body = new URLSearchParams({ symbol: SYM });
@@ -780,20 +924,21 @@
       dw.disabled = pinned;
       lss.toggleAttribute('disabled', !pinned);
       ldw.toggleAttribute('disabled', pinned);
+      sumDisplay.textContent = pinned
+        ? ss.selectedOptions[0]?.textContent || ''
+        : 'CYCLE - ' + dw.value + ' MIN';
     }
 
     async function syncDisplay() {
-      const q = new URLSearchParams({ mode: dm1.checked ? 1 : 0, screen: ss.value, dwell: dw.value, dark: dk.checked ? 1 : 0 });
+      const q = new URLSearchParams({
+        mode: dm1.checked ? 1 : 0,
+        screen: ss.value,
+        dwell: dw.value,
+        dark: dk.checked ? 1 : 0
+      });
       const r = await fetch('/api/display?' + q, { method: 'POST' });
       status(sr, r.ok);
       setTimeout(load, 600);
-    }
-
-    // INFO -------------------------------------------------------------
-    async function dismiss() {
-      const r = await fetch('/api/dismiss', { method: 'POST' });
-      status(dr, r.ok, 'DISMISSED');
-      if (r.ok) infoCard.style.display = 'none';
     }
 
     // STARTUP ----------------------------------------------------------
@@ -808,10 +953,7 @@
       tz.innerHTML = zs.map(z => `<option value="${z.posix}" data-l="${z.label}">${z.label}</option>`).join('');
       tz.value = c.tz;
       sd.checked = c.showDate;
-      now.textContent = c.now;
-
-      // The info card only shows until the panel's info screen is dismissed.
-      infoCard.style.display = c.infoSeen ? 'none' : '';
+      sumClock.textContent = c.label;
 
       ss.innerHTML = sc.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
       ss.value = d.screen;
@@ -823,19 +965,14 @@
 
       (d.mode == 1 ? dm1 : dm0).checked = true;
       dk.checked = d.dark;
-      modeChanged();
 
-      await Promise.all([loadTasks(), loadWx(), loadMarket(), loadUnits()]);
+      await Promise.all([loadTasks(), loadUnits(), loadWx(), loadMarket()]);
+      modeChanged();
+      loadStatus();
     }
 
     load();
-
-    // Keep the clock readout ticking.
-    setInterval(async () => {
-      try {
-        now.textContent = (await get('/api/clock')).now;
-      } catch (e) { }
-    }, 5000);
+    setInterval(loadStatus, 5000);
   </script>
 </body>
 

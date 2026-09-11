@@ -47,6 +47,9 @@ static uint8_t g_drawnHour = 255;
 // Whichever screen is on the panel right now, INFO included.
 static ScreenId activeScreen() { return g_showingInfo ? SCREEN_INFO : g_screen; }
 
+uint8_t webStatusBattery() { return g_state.batteryPct; }
+ScreenId webStatusScreen() { return activeScreen(); }
+
 // Passed to the panel, which calls it to draw a frame.
 static void renderActive(Adafruit_GFX &g) { drawScreen(g, activeScreen(), g_state); }
 

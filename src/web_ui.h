@@ -1,5 +1,6 @@
 // web_ui.h - the config page served on the LAN.
 #pragma once
+#include "screens.h"
 
 void webBegin();
 void webStop();
@@ -13,3 +14,7 @@ bool webIsRunning();
 // save and raise a flag. loop() does the drawing.
 bool webTakeDismissRequest();
 bool webTakeSyncRequest(); // any of the Save buttons
+
+// Supplied by main.cpp, so /api/status can report them.
+uint8_t webStatusBattery();
+ScreenId webStatusScreen();
