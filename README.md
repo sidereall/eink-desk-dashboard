@@ -92,31 +92,21 @@ Skipping the second step leaves the API working, but the config page returns a 4
 
 ## Setting it up
 
-After a successful Wi-Fi connection, the e-ink panel shows its IP address on screen. Opening that address in a browser on the same network loads the config page. From there, a "dismiss info screen" button clears the IP address from the panel. It only reappears after a reset, done by holding the BOOT button for 3 seconds on the ESP32-C6.
+After connecting to Wi-Fi, the panel shows its IP address. Opening that address in a browser on the same network loads the config page, which also shows the IP from then on.
 
-Each section below has a save button that pushes the change to the panel immediately. The page also reflects the device's current settings on load, so opening it from a different device still shows what's already configured, except the Twelve Data API key, which only shows whether one is set or not.
+<img src="docs/webui.png" width="440" alt="The config page">
 
-**Display** - Pin a single screen, or set to cycle through screens between 5 and 60 minutes. Toggle for dark mode.
+A status strip along the top shows the battery level, signal strength, device time and which screen is currently up. Below it, each section can be expanded to change its settings, and shows what it's currently set to when collapsed:
 
-<img src="docs/display_webui.png" width="440" alt="Display settings">
+- **Clock** - Time zone, and whether to show the date line.
+- **Tasks** - The five task slots.
+- **Weather** - Location, searched by city name, and Celsius or Fahrenheit.
+- **Markets** - The Twelve Data API key, and a search for a US-listed stock or ETF.
+- **Display** - Cycle through screens or pin one, the rotation interval, and dark mode.
 
-**Clock** - Time zone, and a toggle for the date line.
+Each section saves on its own, and the panel redraws immediately. The page reads the device's current settings on load, so opening it from a different browser shows what's already configured. Except the Twelve Data key, which only reports whether one is set.
 
-<img src="docs/clock_webui.png" width="440" alt="Clock settings">
-
-**Tasks** - The five task slots.
-
-<img src="docs/tasks_webui.png" width="440" alt="Task settings">
-
-**Weather** - Weather location, searched by city name, and the temperature unit.
-
-<img src="docs/weather_webui.png" width="440" alt="Weather settings">
-
-**Markets** - The Twelve Data API key, and a search for the US-listed stock or ETF to display.
-
-<img src="docs/markets_webui.png" width="440" alt="Markets settings">
-
-Settings are saved to flash and survive both a power cut and reflashing the firmware. A reset (holding BOOT) clears them.
+Settings survive a power cut and a reflash. Holding BOOT for three seconds clears them.
 
 ---
 
@@ -157,8 +147,8 @@ data/
 - ~~Choice of any US stock or ETF for the markets screen, not just SPY.~~
 - ~~Temperature unit switching, Celsius or Fahrenheit.~~
 - ~~Battery charge level monitoring.~~
+- ~~Web page UI/UX improvements.~~
 - Fix bugs surfacing from longer-term use.
-- Web page UI/UX improvements.
 - Wi-Fi setup through a temporary access point, instead of compiling credentials in.
 - Custom PCB, replacing the current point-to-point wiring.
 
