@@ -14,37 +14,26 @@ Four screens cycle on a timer, or one can be pinned, both configurable via the w
 
 Time from NTP, with the timezone chosen from the web page and daylight saving worked out automatically from it. The date line under the clock can be toggled on or off.
 
-<p>
-  <img src="docs/clock_w.png" width="360" alt="Clock screen, light mode">
-  <img src="docs/clock_b.png" width="360" alt="Clock screen, dark mode">
-</p>
+<img src="docs/clock.png" width="440" alt="Clock screen, light and dark">
 
 ### Tasks
 
 Five slots, edited from the web page. Shows the current date and how many entered tasks are complete. Completed tasks are struck through; deleting one closes the gap.
 
-<p>
-  <img src="docs/tasks_w.png" width="360" alt="Tasks screen, light mode">
-  <img src="docs/tasks_b.png" width="360" alt="Tasks screen, dark mode">
-</p>
+<img src="docs/tasks.png" width="440" alt="Tasks screen, light and dark">
 
 ### Weather
 
 Current conditions with a weather icon and today's high and low, plus a four-day forecast, from Open-Meteo. Location is searched by city name from the web page, along with a choice of Celsius or Fahrenheit. No API key needed.
 
-<p>
-  <img src="docs/weather_w.png" width="360" alt="Weather screen, light mode">
-  <img src="docs/weather_b.png" width="360" alt="Weather screen, dark mode">
-</p>
+<img src="docs/weather.png" width="440" alt="Weather screen, light and dark">
 
 ### Markets
 
 A quote with the change since the previous close, and a sparkline of the session. The header shows whether the NYSE is open or closed. Any US stock or ETF can be chosen from the web page, searched by name or ticker, with SPY as the default. Needs a free Twelve Data key, also entered from the web page.
 
-<p>
-  <img src="docs/markets_w.png" width="360" alt="Marekts screen, light mode">
-  <img src="docs/markets_b.png" width="360" alt="Markets screen, dark mode">
-</p>
+
+<img src="docs/markets.png" width="440" alt="Markets screen, light and dark">
 
 ---
 
