@@ -166,6 +166,19 @@
       color: var(--mid);
     }
 
+    /* FIRST-BOOT / RESET INFO SCREEN --------------------------------------- */
+    .info-notice {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--r-card);
+      padding: var(--pad-row);
+      margin-bottom: 1.6rem;
+    }
+
+    .info-notice p {
+      margin: 0;
+    }
+
     /* SECTION LIST -------------------------------------------------------- */
     .panels {
       background: var(--card);
@@ -551,6 +564,15 @@
     </div>
   </div>
 
+  <div id="infoNotice" class="info-notice" hidden>
+    <p class="name">INFO SCREEN</p>
+    <p class="m">THE DISPLAY IS SHOWING DEVICE INFORMATION. DISMISS IT TO RETURN TO YOUR DASHBOARD.</p>
+    <div class="actions">
+      <button type="button" id="dismissInfoButton" onclick="dismissInfo()">DISMISS INFO SCREEN</button>
+      <span id="dismissInfoStatus" class="m" role="status"></span>
+    </div>
+  </div>
+
   <div class="panels">
 
     <section id="secClock">
@@ -710,8 +732,7 @@
     }
 
     // STATUS STRIP -----------------------------------------------------
-    // Live device state, refreshed on a timer. Also fills the address in the
-    // header, so the info card isn't needed.
+    // Live device state, including whether the reset info screen needs dismissing.
     async function loadStatus() {
       try {
         const s = await get('/api/status');
@@ -721,7 +742,25 @@
         sRssi.innerHTML = s.wifi ? s.rssi + '<small> DBM</small>' : '&mdash;';
         sTime.textContent = s.time;
         sScreen.textContent = s.screen;
+        infoNotice.hidden = s.screen !== 'INFO';
+        if (infoNotice.hidden) dismissInfoStatus.textContent = '';
       } catch (e) { }
+    }
+
+    async function dismissInfo() {
+      dismissInfoButton.disabled = true;
+      status(dismissInfoStatus, false, '', 'DISMISSING...');
+      try {
+        const r = await fetch('/api/dismiss', { method: 'POST' });
+        if (!r.ok) throw new Error('Dismiss failed');
+        status(dismissInfoStatus, true, 'RETURNING TO DASHBOARD...');
+        // The device handles the request and refreshes the e-ink panel in its main loop.
+        await loadStatus();
+      } catch (e) {
+        status(dismissInfoStatus, false, '', 'FAILED - PLEASE TRY AGAIN');
+      } finally {
+        dismissInfoButton.disabled = false;
+      }
     }
 
     // CLOCK ------------------------------------------------------------
@@ -968,10 +1007,10 @@
 
       await Promise.all([loadTasks(), loadUnits(), loadWx(), loadMarket()]);
       modeChanged();
-      loadStatus();
     }
 
     load();
+    loadStatus();
     setInterval(loadStatus, 5000);
   </script>
 </body>
