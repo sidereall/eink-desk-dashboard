@@ -1,144 +1,65 @@
 # E-ink Desk Dashboard
 
-![E-ink desk dashboard](docs/hero.png)
+A standalone e-ink desk display with a 4.2-inch screen and a rechargeable battery. It cycles through a clock, a task list, the local forecast, and a stock quote. An ESP32-C6 serves a settings page over Wi-Fi, where you can edit tasks, change the rotation interval, or pin one screen.
 
-A standalone e-ink desk display built around an ESP32-C6 microcontroller, running firmware written in C++ with PlatformIO. It connects over Wi-Fi, syncs its time via NTP, and shows a clock, a task list, weather, and stock market data on a 4.2" e-ink panel, sourced from public APIs (Open-Meteo and Twelve Data). The device is configured entirely from a web page it serves over the local network.
+<table align="center" width="800">
+  <tr>
+    <td colspan="2"><img src="docs/hero.png" width="100%" alt="E-ink desk dashboard"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/clock.png" width="100%" alt="Clock in light and dark mode"><br>Clock with an optional date line</td>
+    <td width="50%"><img src="docs/tasks.png" width="100%" alt="Task list in light and dark mode"><br>Tasks with a count of finished items</td>
+  </tr>
+  <tr>
+    <td><img src="docs/weather.png" width="100%" alt="Weather in light and dark mode"><br>Today's weather and a four-day forecast</td>
+    <td><img src="docs/markets.png" width="100%" alt="Market quote in light and dark mode"><br>Stock quote and recent price chart</td>
+  </tr>
+</table>
 
----
+## Parts and wiring
 
-## Screens
+The parts for this build cost about €30, including the enclosure.
 
-Four screens cycle on a timer, or one can be pinned, both configurable via the web page. Each shows the battery level and a Wi-Fi icon in the top right corner.
-
-### Clock
-
-Time from NTP, with the timezone chosen from the web page and daylight saving worked out automatically from it. The date line under the clock can be toggled on or off.
-
-<img src="docs/clock.png" width="440" alt="Clock screen, light and dark">
-
-### Tasks
-
-Five slots, edited from the web page. Shows the current date and how many entered tasks are complete. Completed tasks are struck through; deleting one closes the gap.
-
-<img src="docs/tasks.png" width="440" alt="Tasks screen, light and dark">
-
-### Weather
-
-Current conditions with a weather icon and today's high and low, plus a four-day forecast, from Open-Meteo. Location is searched by city name from the web page, along with a choice of Celsius or Fahrenheit. No API key needed.
-
-<img src="docs/weather.png" width="440" alt="Weather screen, light and dark">
-
-### Markets
-
-A quote with the change since the previous close, and a sparkline of the session. The header shows whether the NYSE is open or closed. Any US stock or ETF can be chosen from the web page, searched by name or ticker, with SPY as the default. Needs a free Twelve Data key, also entered from the web page.
-
-
-<img src="docs/markets.png" width="440" alt="Markets screen, light and dark">
-
----
-
-## Hardware
-
-Roughly 30€ in parts including the enclosure.
-
-| Part | Notes |
+| Part | Details |
 | --- | --- |
-| ESP32-C6-DevKit | Any other C6 board should work without changes |
-| WeAct 4.2" e-ink screen | 400x300, black and white, SSD1683 controller |
-| SM5308 power module | USB-C input, charge and boost |
-| 18650 li-ion cell | Used 2200mAh, size depends on desired runtime |
-| 2x 82kΩ resistors | Voltage divider for the battery reading |
-| 3D printed enclosure | Two .stl files modeled by me, see `enclosure/` |
+| ESP32-C6-DevKitC-1 | Board with 8 MB of flash |
+| WeAct 4.2-inch e-ink panel | 400 × 300, black and white, SSD1683 controller |
+| SM5308 power module | USB-C charging and 5 V boost output |
+| 18650 Li-ion cell | 2200 mAh |
+| Two 82 kΩ resistors | Voltage divider for the battery reading on GPIO 3 |
+| 3D-printed enclosure | The [body](enclosure/enclosure_body.stl) and [screen frame](enclosure/enclosure_screen.stl) print separately |
 
-<br>
+The firmware uses the pins in the diagram. If you use another C6 board, check its pinout against [config.h](src/config.h) and its flash size against [platformio.ini](platformio.ini).
 
-<img src="docs/wiring.png" width="440" alt="Wiring diagram">
-<br>
-<img src="docs/wiring_photo.png" width="440" alt="Assembled electronics">
+<p align="center"><img src="docs/wiring.png" width="800" alt="Wiring diagram for the panel, ESP32-C6, power module, and battery"></p>
 
----
+<p align="center"><img src="docs/wiring_photo.png" width="800" alt="Assembled dashboard electronics"></p>
 
-## Building
+## Flash and set up
 
-PlatformIO, with the [pioarduino](https://github.com/pioarduino/platform-espressif32) platform fork. The official PlatformIO only supports the ESP32C6 for ESP-IDF, but not yet for the Arduino framework this project uses.
+1. With PlatformIO installed, clone the project and copy the Wi-Fi template.
 
-```bash
-git clone https://github.com/sidereall/eink-desk-dashboard
-cd eink-desk-dashboard
-cp src/secrets.h.example src/secrets.h    # then fill in your Wi-Fi details
-```
+   ```sh
+   git clone https://github.com/sidereall/eink-desk-dashboard
+   cd eink-desk-dashboard
+   cp src/secrets.h.example src/secrets.h
+   ```
 
-Two uploads, since the firmware and the web page live in different places:
+2. Set `WIFI_SSID` and `WIFI_PASSWORD` in `src/secrets.h`. Changing networks takes another firmware upload. Connect the board over USB and run both commands from the project directory.
 
-```bash
-pio run -t upload      # firmware
-pio run -t uploadfs    # the web page, onto the filesystem partition
-```
+   ```sh
+   pio run -t upload      # firmware
+   pio run -t uploadfs    # settings page and font
+   ```
 
-Skipping the second step leaves the API working, but the config page returns a 404 error.
+   If the page says `index.html missing from filesystem`, run `pio run -t uploadfs`.
 
----
+3. On first boot, the Info screen shows the IP address once Wi-Fi connects. Open that address in a browser on the same network. Tap BOOT or choose Dismiss info screen on the page to start the dashboard. Later boots skip Info once you've dismissed it.
 
-## Setting it up
+4. Choose your time zone and search for a city for the Open-Meteo forecast. For stock quotes, enter a Twelve Data API key. The default symbol is SPY. You can search for a US stock or ETF by name or ticker. Each section saves separately.
 
-After connecting to Wi-Fi, the panel shows its IP address. Opening that address in a browser on the same network loads the config page, which also shows the IP from then on.
+5. On the settings page, open Display to change the rotation interval (five minutes by default), pin a screen, or switch the panel to dark mode.
 
-<img src="docs/webui.png" width="440" alt="The config page">
+6. To clear saved settings and tasks, hold BOOT for three seconds. The dashboard returns to the Info screen.
 
-A status strip along the top shows the battery level, signal strength, device time and which screen is currently up. Below it, each section can be expanded to change its settings, and shows what it's currently set to when collapsed:
-
-- **Clock** - Time zone, and whether to show the date line.
-- **Tasks** - The five task slots.
-- **Weather** - Location, searched by city name, and Celsius or Fahrenheit.
-- **Markets** - The Twelve Data API key, and a search for a US-listed stock or ETF.
-- **Display** - Cycle through screens or pin one, the rotation interval, and dark mode.
-
-Each section saves on its own, and the panel redraws immediately. The page reads the device's current settings on load, so opening it from a different browser shows what's already configured. Except the Twelve Data key, which only reports whether one is set.
-
-Settings survive a power cut and a reflash. Holding BOOT for three seconds clears them.
-
----
-
-## Project structure
-
-```
-src/
-  main.cpp           |setup, the main loop, and everything that draws
-  panel.cpp          |the only file that talks to the display driver
-  screens.cpp        |draws each screen from a state struct
-  clock_time.cpp     |NTP and the timezone rules
-  tasks.cpp          |the task list, in RAM and saved to flash
-  weather.cpp        |Open-Meteo fetch, on its own task
-  markets.cpp        |Twelve Data fetch, on its own task
-  wifi_net.cpp       |the connection and its reconnect handling
-  web_ui.cpp         |the config page and its API
-  app_settings.cpp   |everything that persists
-  config.h           |every tunable number in the project
-data/
-  index.html         |the config page itself
-```
-
----
-
-## Security
-
-**Protected.** Every write endpoint validates input at the boundary. Secrets never come back out: the markets key reads back only as configured or not, the Wi-Fi password exists only in the compiled firmware, and the key is logged by length alone. The radio won't join anything weaker than WPA2, so an open network with a matching name can't lure the device onto it.
-
-**Not protected.** Any device on the same network can call the write endpoints, the same setup as most consumer devices on the LAN.
-
-**Deliberately not done.** HTTPS would need a self-signed certificate and a browser warning on every visit, worse for the user than the problem it solves. Flash encryption is disproportionate for this scope.
-
----
-
-## Future plans
-
-- ~~Dark mode for both the panel and the web page.~~
-- ~~Choice of any US stock or ETF for the markets screen, not just SPY.~~
-- ~~Temperature unit switching, Celsius or Fahrenheit.~~
-- ~~Battery charge level monitoring.~~
-- ~~Web page UI/UX improvements.~~
-- Fix bugs surfacing from longer-term use.
-- Wi-Fi setup through a temporary access point, instead of compiling credentials in.
-- Custom PCB, replacing the current point-to-point wiring.
-
----
+<p align="center"><img src="docs/webui.png" width="800" alt="Dashboard settings page in a web browser"></p>
