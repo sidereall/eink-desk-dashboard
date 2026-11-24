@@ -1,13 +1,8 @@
-// clock_time.h - time from NTP, with the timezone applied on the device.
-//
-// The chip keeps time on its own crystal after the first sync, so a Wi-Fi
-// outage doesn't stop the clock. A power cut does: no RTC, so it re-syncs from
-// scratch on boot.
-//
-// Daylight saving is worked out on the device from the timezone's rule string
-// (see timezones.h), so it changes correctly even with no network.
+// Provides local time, display dates, and clock-based fetch intervals.
+
 #pragma once
 #include <stddef.h>
+#include <stdint.h>
 #include <time.h>
 
 // Loads the saved timezone from NVS and applies it. Call once, in setup().
@@ -31,3 +26,6 @@ void clockFormatDate(const struct tm &t, char *buf, size_t n);
 
 // e.g. "FRIDAY, 6 MAR" - for the TASKS header
 void clockFormatDateLong(const struct tm &t, char *buf, size_t n);
+
+// Align provider refreshes to local time once NTP is available.
+uint32_t clockNextFetchDelay(uint32_t intervalMs, uint16_t offsetSeconds);

@@ -1,7 +1,7 @@
-// wifi_net.h - the Wi-Fi connection and its reconnect handling.
-//
-// Reports the connection state through WifiStatus. Nothing here draws.
+// Provides Wi-Fi status and the shared HTTPS request interface.
+
 #pragma once
+#include <ArduinoJson.h>
 #include <stdint.h>
 
 struct WifiStatus {
@@ -23,3 +23,6 @@ bool wifiIsConnected();
 
 // Reads the live radio state.
 void wifiGetStatus(WifiStatus &out);
+
+// Decode an HTTPS response using the firmware's certificate bundle.
+bool wifiGetJson(const char *url, uint16_t timeoutMs, JsonDocument &doc);

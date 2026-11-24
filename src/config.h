@@ -1,9 +1,10 @@
-// config.h - pin map, panel, refresh policy, screen layout, network timings
+// Defines board pins, screen geometry, and firmware timing defaults.
+
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
 
-// PIN MAP ------------------------------------------------------------
+// Pin map
 // E-ink to ESP32-C6 DevKit wiring
 #define CS_PIN 10
 #define DC_PIN 19
@@ -17,15 +18,13 @@
 // 3s hold     - reset: wipes every stored setting
 #define BUTTON_PIN 9
 
-// BATTERY --------------------------------------------------------------------
+// Battery
 // Cell voltage through an 82k/82k divider, so the ADC sees half of it.
 constexpr uint8_t BATTERY_PIN = 3;
 constexpr float BATTERY_DIVIDER = 2.0f;
 constexpr uint32_t BATTERY_POLL_MS = 60000;
 constexpr uint8_t BATTERY_SAMPLES = 8; // a single read could swing by tens of mV
 
-// Below this the device couldn't be running.
-constexpr float BATTERY_MIN_VALID = 2.5f;
 constexpr uint8_t BATTERY_UNKNOWN = 255;
 
 // Li-ion doesn't fall linearly. It sits near 3.8V for most of its life, so the
@@ -43,7 +42,7 @@ constexpr int16_t HDR_BATT_Y = 23;
 constexpr int16_t CLOCK_BATT_X = 345;
 constexpr int16_t CLOCK_BATT_Y = 12;
 
-// PANEL  --------------------------------------------------------------
+// Panel
 constexpr int16_t SCREEN_W = 400;
 constexpr int16_t SCREEN_H = 300;
 
@@ -51,11 +50,7 @@ constexpr int16_t SCREEN_H = 300;
 constexpr uint16_t COL_BLACK = 0x0000;
 constexpr uint16_t COL_WHITE = 0xFFFF;
 
-// Foreground and background for the current theme, set once per frame.
-extern uint16_t COL_FG;
-extern uint16_t COL_BG;
-
-// REFRESH POLICY ----------------------------------------------------
+// Refresh policy
 // Number of partial refreshes, before a full screen refresh
 constexpr uint8_t MAX_PARTIALS_BEFORE_FULL = 10;
 
@@ -75,13 +70,10 @@ constexpr uint8_t DEFAULT_DWELL_MINUTES = 5;
 constexpr uint8_t DEFAULT_DISPLAY_MODE = DISPLAY_CYCLE;
 constexpr uint8_t DEFAULT_STATIC_SCREEN = 0; // clock
 
-// Screens the user is allowed to set (clock, tasks, weather, markets)
-constexpr uint8_t SELECTABLE_SCREEN_COUNT = 4;
-
 // How often loop() checks the time.
 constexpr uint32_t CLOCK_POLL_MS = 500;
 
-// LAYOUT --------------------------------------------------------------
+// Layout
 // Rounded corners on all screens
 constexpr int16_t FRAME_RADIUS = 22;
 
@@ -131,7 +123,7 @@ constexpr int16_t MSG_LINE1_Y = 150;
 constexpr int16_t MSG_LINE2_Y = 185;
 constexpr int16_t MSG_SINGLE_Y = 165;
 
-// CLOCK SCREEN ---------------------------------------------------------------
+// Clock screen
 // Clock digits
 constexpr uint8_t CLOCK_DIGIT_SIZE = 15;
 constexpr int16_t CLOCK_DIGIT_Y = 160;
@@ -155,7 +147,7 @@ constexpr int16_t CLOCK_TIME_BAND_Y = 60;
 constexpr int16_t CLOCK_TIME_BAND_W = 400;
 constexpr int16_t CLOCK_TIME_BAND_H = 124;
 
-// TASKS SCREEN -------------------------------------------------------------------
+// Tasks screen
 // Max number of tasks displayed on screen
 constexpr uint8_t MAX_TASKS = 5;
 
@@ -191,7 +183,7 @@ constexpr int16_t TASK_STRIKE_THICK = 2;
 constexpr int16_t TASK_COUNT_RIGHT = 378;
 constexpr int16_t TASK_COUNT_Y = 55;
 
-// WEATHER SCREEN  -------------------------------------------------------------------
+// Weather screen
 // Last updated time "UPDATED HH:MM" in header
 constexpr int16_t WX_UPDATED_RIGHT = 378;
 constexpr int16_t WX_UPDATED_Y = 55;
@@ -238,7 +230,7 @@ constexpr int16_t WX_CARD_DEG_DY = 72;
 // Gap between a temperature and its degree glyph.
 constexpr int16_t WX_DEG_GAP = 4;
 
-// MARKETS SCREEN  ---------------------------------------------------------------
+// Markets screen
 // Last updated time "UPDATED HH:MM" in header
 constexpr int16_t MK_UPDATED_RIGHT = 378;
 constexpr int16_t MK_UPDATED_Y = 55;
@@ -282,10 +274,10 @@ constexpr int16_t MK_SPARK_PAD_BOT = 16;
 // Centred fallback message in the chart box
 constexpr int16_t MK_MSG_Y = 210;
 
-// DEVICE IDENTITY ------------------------------------------------------------------
+// Device identity
 #define DEVICE_HOSTNAME "dashboard" // router DHCP name
 
-// TIME -----------------------------------------------------------------------------
+// Time
 #define NTP_SERVER_1 "pool.ntp.org"
 #define NTP_SERVER_2 "time.nist.gov"
 #define NTP_SERVER_3 "time.google.com"
@@ -298,13 +290,10 @@ constexpr int16_t MK_MSG_Y = 210;
 constexpr size_t TZ_POSIX_MAX = 48;
 constexpr size_t TZ_LABEL_MAX = 40;
 
-// WEATHER -------------------------------------------------------------------------
+// Weather
 constexpr bool DEFAULT_FAHRENHEIT = false;
 
 constexpr size_t WX_NAME_MAX = 24; // city name
-
-// Fetch on the clock (10:30, 11:00...) so the update time doesn't drift.
-constexpr uint8_t WEATHER_SLOT_MINUTES = 30;
 
 // Offset the fetch a few seconds so it doesn't land on :00/:30, where the API gets overloaded.
 constexpr uint16_t WEATHER_SLOT_OFFSET_SEC = 35;
@@ -312,7 +301,7 @@ constexpr uint16_t WEATHER_SLOT_OFFSET_SEC = 35;
 // Ignore the next-fetch time if its close.
 constexpr int32_t FETCH_SLOT_MIN_GAP_SEC = 5;
 
-// Fallback only, for when the clock isn't synced and slots can't be computed.
+// Interval between forecast updates.
 constexpr uint32_t WEATHER_FETCH_MS = 30UL * 60 * 1000;
 
 // After a failed fetch, retry this soon instead of waiting for the next slot.
@@ -325,7 +314,7 @@ constexpr uint32_t WEATHER_HTTP_TIMEOUT_MS = 10000;
 // Fetch task memory. Measured ~4KB, allocated 12KB.
 constexpr uint32_t WEATHER_TASK_STACK = 12288;
 
-// SHARED BY WEATHER + MARKETS FETCH -------------------------------------------------
+// Weather and market fetch timing
 // Wait after startup before the first fetch, so Wi-Fi and the clock are ready.
 constexpr uint32_t FETCH_FIRST_DELAY_MS = 3000;
 constexpr uint32_t FETCH_FIRST_STAGGER_MS = 1000; // markets after weather
@@ -336,10 +325,7 @@ constexpr uint32_t FETCH_NTP_GRACE_MS = 45000;
 // Short pause after startup so the first serial messages aren't lost.
 constexpr uint32_t SERIAL_BOOT_SETTLE_MS = 300;
 
-// MARKETS ---------------------------------------------------------------------------
-// By default it displays SPY, part of the free API tier.
-// It follows the S&P 500 index at 1/10th of the price.
-// The free tier covers US markets only.
+// Markets
 #define DEFAULT_MARKET_SYMBOL "SPY"
 constexpr size_t MARKET_SYMBOL_MAX = 12;
 
@@ -359,7 +345,7 @@ constexpr uint32_t MARKET_TASK_STACK = 12288;
 // Fetch a bit later than weather.
 constexpr uint16_t MARKET_SLOT_OFFSET_SEC = 50;
 
-// WI-FI -----------------------------------------------------------------------------
+// Wi-Fi
 // After a drop, wait 5s, then keep doubling up to 60s. Resets on reconnect.
 constexpr uint32_t WIFI_RETRY_MIN_MS = 5000;
 constexpr uint32_t WIFI_RETRY_MAX_MS = 60000;
@@ -370,7 +356,7 @@ constexpr uint32_t WIFI_STACK_RESET_MS = 300000; // 5 minutes
 // How often loop() checks the Wi-Fi state.
 constexpr uint32_t NET_POLL_MS = 1000;
 
-// BUTTON + INFO SCREEN ---------------------------------------------------------------
+// Button and Info screen
 constexpr uint32_t BUTTON_DEBOUNCE_MS = 50;
 constexpr uint32_t BUTTON_LONG_MS = 3000; // 3s hold -> reset
 
@@ -382,7 +368,7 @@ enum ButtonEvent : uint8_t { BTN_NONE = 0, BTN_SHORT, BTN_LONG };
 // saved flag hides it; a reset brings it back.
 constexpr bool INFO_ALWAYS_ON_BOOT = false;
 
-// INFO SCREEN LAYOUT ------------------------------------------------------------------
+// Info screen layout
 // IP address box at the top center
 constexpr int16_t INFO_IP_BOX_X = 20;
 constexpr int16_t INFO_IP_BOX_Y = 70;

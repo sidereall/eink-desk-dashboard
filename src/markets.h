@@ -1,12 +1,14 @@
-// markets.h - Twelve Data over HTTPS, on its own FreeRTOS task.
-//
-// Same shape as weather.h. The fetch task passes results back through a mutex,
-// and never touches the panel, the web server, or NVS.
+// Connects the market data worker to the dashboard.
+
 #pragma once
 #include "screens.h"
 
-void marketsBegin();               // create mutex, read the key, start the task
-void marketsApplySettings();       // re-read the API key from NVS, loop task only
-void marketsRequestFetch();        // fetch now, after a key change or Wi-Fi coming up
-bool marketsTakeUpdate();          // true once, after fresh data arrives
-void marketsCopyInto(AppState &s); // copy the current data into AppState
+void marketsBegin();
+
+// The main loop reads the saved key and symbol and passes them to the worker.
+void marketsApplySettings();
+void marketsRequestFetch();
+
+// Consumes the completion flag, including failed requests that may leave a stale quote.
+bool marketsTakeUpdate();
+void marketsCopyInto(AppState &s);

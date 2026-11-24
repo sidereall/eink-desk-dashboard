@@ -1,4 +1,5 @@
-// app_settings.cpp
+// Reads and writes device settings in ESP32 nonvolatile storage.
+
 #include <Arduino.h>
 #include <Preferences.h>
 #include <string.h>
@@ -32,7 +33,7 @@ void settingsFactoryReset() {
   Serial.println("[settings] factory reset - back to UTC, info screen re-armed");
 }
 
-// INFO -------------------------------------------------------------------
+// Info
 bool settingsInfoShown() { return prefs.getBool(KEY_INFO_SEEN, false); }
 
 void settingsMarkInfoShown() {
@@ -42,7 +43,7 @@ void settingsMarkInfoShown() {
   Serial.println("[settings] info screen acknowledged");
 }
 
-// CLOCK  ------------------------------------------------------------------
+// Clock
 void settingsGetTz(char *posix, size_t nPosix, char *label, size_t nLabel) {
   const String p = prefs.getString(KEY_TZ_POSIX, DEFAULT_TZ_POSIX);
   const String l = prefs.getString(KEY_TZ_LABEL, DEFAULT_TZ_LABEL);
@@ -60,7 +61,7 @@ bool settingsShowDate() { return prefs.getBool(KEY_SHOW_DATE, true); }
 
 void settingsSetShowDate(bool show) { prefs.putBool(KEY_SHOW_DATE, show); }
 
-// DISPLAY ----------------------------------------------------------------
+// Display
 uint8_t settingsDisplayMode() { return prefs.getUChar(KEY_DISP_MODE, DEFAULT_DISPLAY_MODE); }
 
 void settingsSetDisplayMode(uint8_t mode) { prefs.putUChar(KEY_DISP_MODE, mode); }
@@ -77,8 +78,7 @@ bool settingsDarkMode() { return prefs.getBool(KEY_DARK_MODE, false); }
 
 void settingsSetDarkMode(bool dark) { prefs.putBool(KEY_DARK_MODE, dark); }
 
-// WEATHER ----------------------------------------------------------------
-bool settingsWeatherConfigured() { return prefs.getString(KEY_WX_NAME, "").length() > 0; }
+// Weather
 bool settingsFahrenheit() { return prefs.getBool(KEY_FAHRENHEIT, DEFAULT_FAHRENHEIT); }
 void settingsSetFahrenheit(bool f) { prefs.putBool(KEY_FAHRENHEIT, f); }
 
@@ -97,11 +97,10 @@ void settingsSetWeather(float lat, float lon, const char *name) {
   prefs.putFloat(KEY_WX_LAT, lat);
   prefs.putFloat(KEY_WX_LON, lon);
   prefs.putString(KEY_WX_NAME, name);
-  // printf can't print floats on the ESP32, so convert them to text first.
   Serial.printf("[settings] weather location: %s (%s, %s)\n", name, String(lat, 4).c_str(), String(lon, 4).c_str());
 }
 
-// MARKETS ----------------------------------------------------------------
+// Markets
 bool settingsMarketConfigured() { return prefs.getString(KEY_MKT_KEY, "").length() > 0; }
 
 void settingsGetMarketKey(char *key, size_t nKey) {

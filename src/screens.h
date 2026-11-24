@@ -1,20 +1,16 @@
-// screens.h — the data the screens read, and the functions that draw them.
+// Defines screen identifiers, display data, and drawing entry points.
+
 #pragma once
 #include "config.h"
 #include <Adafruit_GFX.h>
 
 enum ScreenId : uint8_t {
   SCREEN_CLOCK = 0,
-  SCREEN_TASKS,   // 1
-  SCREEN_WEATHER, // 2
-  SCREEN_MARKETS, // 3
-
-  // = 4. Everything above is in the rotation.
+  SCREEN_TASKS,
+  SCREEN_WEATHER,
+  SCREEN_MARKETS,
   SCREEN_ROTATION_COUNT,
-
-  // Also 4, so `% SCREEN_ROTATION_COUNT` can never land on INFO.
-  SCREEN_INFO = SCREEN_ROTATION_COUNT,
-  SCREEN_COUNT // = 5
+  SCREEN_INFO = SCREEN_ROTATION_COUNT
 };
 
 enum WxIcon : uint8_t { WX_CLEAR = 0, WX_PARTLY_CLOUDY, WX_OVERCAST, WX_RAIN, WX_THUNDERSTORM, WX_SNOW };
@@ -26,12 +22,11 @@ struct Task {
 
 struct WeatherDay {
   char name[4]; // e.g. "MON"
-  int8_t temp;  // Given day's max temperature
+  int16_t temp;  // Given day's max temperature
   uint8_t icon; // Weather icon (WxIcon)
 };
 
-// 78 = one NYSE session (6.5h / 5min)
-// 79 = plus yesterday's close, so the line starts from the % change baseline
+// Five-minute closes, oldest to newest on the chart.
 constexpr uint8_t MARKET_SPARK_MAX = 79;
 
 struct MarketData {
@@ -66,9 +61,9 @@ struct WeatherData {
   char status[20];            // e.g. "PARTLY CLOUDY"
   char updated[6];            // "HH:MM" of the last good fetch
 
-  int8_t tempNow;
-  int8_t tempHigh; // today's high
-  int8_t tempLow;  // today's low
+  int16_t tempNow;
+  int16_t tempHigh; // today's high
+  int16_t tempLow;  // today's low
   uint8_t iconNow; // Weather icon (WxIcon)
 
   WeatherDay days[WX_CARD_COUNT]; // the next four days
@@ -76,7 +71,6 @@ struct WeatherData {
 
 // Everything the screens draw from. Each subsystem fills its own section.
 struct AppState {
-  // TIME (clock_time.cpp) ---------------------------------------------------------------------
   bool timeSynced; // false until NTP fetched
   uint8_t hour;
   uint8_t minute;
@@ -85,11 +79,9 @@ struct AppState {
   char tasksDate[32];         // e.g. "FRIDAY, 6 MAR"
   char tzLabel[TZ_LABEL_MAX]; // shown on INFO
 
-  // TASKS (tasks.cpp) --------------------------------------------------------------------------
   Task tasks[MAX_TASKS];
   uint8_t taskCount;
 
-  // NETWORK (wifi_net.cpp) ---------------------------------------------------------------------
   bool wifiConnected;
   char ip[16]; // e.g. "192.168.1.10"
   char ssid[33];
@@ -97,16 +89,12 @@ struct AppState {
   int8_t rssi;       // dBm
   uint32_t uptimeSec;
 
-  // BATTERY ---------------------------------------------------------------------
   uint8_t batteryPct; // 0/25/50/75/100, or BATTERY_UNKNOWN
 
-  // WEATHER (Open-Meteo; weather.cpp) -------------------------------------------------------
   WeatherData weather;
 
-  // MARKETS (Twelve Data; markets.cpp) ------------------------------------------------------
   MarketData markets;
 
-  // DISPLAY (main.cpp) -------------------------------------------------------
   bool darkMode; // inverts the panel
 };
 
@@ -123,10 +111,3 @@ const char *screenName(ScreenId id);
 
 // Draws the screen for the given id.
 void drawScreen(Adafruit_GFX &g, ScreenId id, const AppState &s);
-
-// Exposed individually so one can be called directly while testing.
-void drawClock(Adafruit_GFX &g, const AppState &s);
-void drawTasks(Adafruit_GFX &g, const AppState &s);
-void drawWeather(Adafruit_GFX &g, const AppState &s);
-void drawMarkets(Adafruit_GFX &g, const AppState &s);
-void drawInfo(Adafruit_GFX &g, const AppState &s);

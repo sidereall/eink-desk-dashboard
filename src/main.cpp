@@ -1,4 +1,5 @@
-// main.cpp - setup, the main loop, and everything that draws to the panel.
+// Coordinates startup, button input, network updates, and screen refreshes.
+
 #include <Arduino.h>
 
 #include "app_settings.h"
@@ -12,18 +13,8 @@
 #include "web_ui.h"
 #include "wifi_net.h"
 
-// Everything the screens draw from.
 static AppState g_state;
-
-// The current rotation screen. Never SCREEN_INFO, that's tracked separately.
 static ScreenId g_screen = SCREEN_CLOCK;
-
-static bool g_rotationEnabled[SCREEN_ROTATION_COUNT] = {
-    /* CLOCK   */ true,
-    /* TASKS   */ true,
-    /* WEATHER */ true,
-    /* MARKETS */ true,
-};
 
 // INFO takes over the panel until dismissed, then hands back to g_screen.
 static bool g_showingInfo = false;
@@ -35,83 +26,87 @@ static uint32_t g_lastScreenSwitch = 0;
 static uint32_t g_lastNetPoll = 0;
 static uint32_t g_lastClockPoll = 0;
 static uint32_t g_lastBattPoll = 0;
-static bool g_drawnSynced = false;
 
 // Cached from NVS, re-read when the web page pushes a change.
 static uint8_t g_displayMode = DEFAULT_DISPLAY_MODE;
-static ScreenId g_staticScreen = (ScreenId)DEFAULT_STATIC_SCREEN;
 static uint32_t g_dwellMs = (uint32_t)DEFAULT_DWELL_MINUTES * 60000UL;
+static bool g_drawnSynced = false;
+static char g_drawnDate[sizeof(g_state.tasksDate)];
 static uint8_t g_drawnMinute = 255; // 255 = nothing drawn yet
 static uint8_t g_drawnHour = 255;
 
-// Whichever screen is on the panel right now, INFO included.
 static ScreenId activeScreen() { return g_showingInfo ? SCREEN_INFO : g_screen; }
 
 uint8_t webStatusBattery() { return g_state.batteryPct; }
 ScreenId webStatusScreen() { return activeScreen(); }
 
-// Passed to the panel, which calls it to draw a frame.
 static void renderActive(Adafruit_GFX &g) { drawScreen(g, activeScreen(), g_state); }
 
-// The frame guard: renders off-screen and hashes it, so a refresh only happens
-// when the picture actually changes.
+// The off-screen canvas lets identical full frames skip a panel refresh.
 static GFXcanvas1 *g_probe = nullptr;
 static uint32_t g_shownHash = 0;
 static bool g_haveHash = false;
 
-static uint32_t frameHash() {
-  if (!g_probe)
-    return 0;
-
-  g_probe->fillScreen(0);
-  drawScreen(*g_probe, activeScreen(), g_state);
-
-  const uint8_t *buf = g_probe->getBuffer();
-  const size_t n = (size_t)(SCREEN_W / 8) * SCREEN_H;
-
-  uint32_t h = 2166136261u; // FNV-1a
-  for (size_t i = 0; i < n; i++) {
-    h ^= buf[i];
-    h *= 16777619u;
+// The canvas and panel both store eight horizontal pixels per byte.
+static uint32_t canvasHash(Rect exclude = {0, 0, 0, 0}) {
+  const uint8_t *pixels = g_probe->getBuffer();
+  const int stride = (SCREEN_W + 7) / 8;
+  const int left = exclude.x / 8;
+  const int right = (exclude.x + exclude.w + 7) / 8;
+  uint32_t hash = 2166136261u; // FNV-1a
+  for (int y = 0; y < SCREEN_H; ++y) {
+    const bool withinRows = y >= exclude.y && y < exclude.y + exclude.h;
+    for (int x = 0; x < stride; ++x) {
+      if (!withinRows || x < left || x >= right) {
+        hash ^= pixels[y * stride + x];
+        hash *= 16777619u;
+      }
+    }
   }
-  return h;
+  return hash;
 }
 
-// Full refresh, skipped if the frame is unchanged. Logs why it fired.
+static void noteFullFrame() {
+  g_drawnMinute = g_state.minute;
+  g_drawnHour = g_state.hour;
+  g_drawnSynced = g_state.timeSynced;
+  snprintf(g_drawnDate, sizeof(g_drawnDate), "%s", g_state.tasksDate);
+}
+
 static void redrawFull(const char *reason) {
-  // Cheap struct copies, keeps the stale flags current.
   weatherCopyInto(g_state);
   marketsCopyInto(g_state);
 
-  const uint32_t h = frameHash();
-  if (g_haveHash && h == g_shownHash) {
-    Serial.printf("[panel] SKIPPED (%s) - the frame is already on screen\n", reason);
-    g_drawnMinute = g_state.minute;
-    g_drawnHour = g_state.hour;
-    return;
+  if (g_probe)
+    renderActive(*g_probe);
+  const uint32_t hash = g_probe ? canvasHash() : 0;
+  if (!g_haveHash || hash != g_shownHash) {
+    Serial.printf("[panel] full refresh: %s\n", reason);
+    panelDrawFull(renderActive);
+    g_shownHash = hash;
+    g_haveHash = g_probe != nullptr;
   }
 
-  Serial.printf("[panel] FULL refresh  <- %s\n", reason);
-  panelDrawFull(renderActive);
-
-  g_shownHash = h;
-  g_haveHash = true;
-  g_drawnMinute = g_state.minute;
-  g_drawnHour = g_state.hour;
+  noteFullFrame();
 }
 
-// A partial refresh changes the panel too, so the stored hash has to follow.
-static void noteFrameShown() {
-  g_shownHash = frameHash();
-  g_haveHash = true;
+static void redrawPartial(Rect area) {
+  const bool full = panelDrawPartial(area.x, area.y, area.w, area.h, renderActive);
+  const bool wholeFrame = full || (area.w == SCREEN_W && area.h == SCREEN_H);
+  if (wholeFrame)
+    noteFullFrame();
+  if (!g_probe)
+    return;
+
+  const uint32_t previousOutside = g_haveHash && !wholeFrame ? canvasHash(area) : 0;
+  renderActive(*g_probe);
+  // A Wi-Fi update can coincide with a clock tick outside its window.
+  g_haveHash = wholeFrame || (g_haveHash && canvasHash(area) == previousOutside);
+  if (g_haveHash)
+    g_shownHash = canvasHash();
 }
 
-// Reads the clock and the saved timezone into AppState.
 static void copyTimeIntoState() {
-  char posix[TZ_POSIX_MAX];
-  settingsGetTz(posix, sizeof(posix), g_state.tzLabel, sizeof(g_state.tzLabel));
-  g_state.showDate = settingsShowDate();
-
   struct tm t;
   if (!clockGetLocal(t)) {
     // No RTC, so a cold boot doesn't know the time.
@@ -130,8 +125,9 @@ static void copyTimeIntoState() {
   clockFormatDateLong(t, g_state.tasksDate, sizeof(g_state.tasksDate));
 }
 
-// Reads the live radio state into AppState.
-static void copyNetworkIntoState() {
+// Only this function updates the connection state and starts or stops network services.
+static bool pollNetwork() {
+  const bool wasConnected = g_state.wifiConnected;
   WifiStatus w;
   wifiGetStatus(w);
 
@@ -141,43 +137,38 @@ static void copyNetworkIntoState() {
   snprintf(g_state.ip, sizeof(g_state.ip), "%s", w.ip);
   snprintf(g_state.ssid, sizeof(g_state.ssid), "%s", w.ssid);
   snprintf(g_state.security, sizeof(g_state.security), "%s", w.security);
+
+  if (wasConnected == w.connected)
+    return false;
+
+  if (w.connected) {
+    webBegin();
+    clockStartSync();
+    weatherRequestFetch();
+    marketsRequestFetch();
+  } else {
+    webStop();
+  }
+  return true;
 }
 
-// Re-reads the display settings from NVS into the cached globals.
 static void reloadDisplaySettings() {
   g_displayMode = settingsDisplayMode();
-  g_staticScreen = (ScreenId)settingsStaticScreen();
+  const ScreenId pinned = (ScreenId)settingsStaticScreen();
   g_dwellMs = (uint32_t)settingsDwellMinutes() * 60000UL;
   g_state.darkMode = settingsDarkMode();
 
   if (g_displayMode == DISPLAY_STATIC)
-    g_screen = g_staticScreen;
+    g_screen = pinned < SCREEN_ROTATION_COUNT ? pinned : SCREEN_CLOCK;
 
-  Serial.printf("[display] %s, screen=%s, dwell=%umin\n", (g_displayMode == DISPLAY_STATIC) ? "static" : "cycle",
-                screenName(g_staticScreen), (unsigned)(g_dwellMs / 60000UL));
+  char posix[TZ_POSIX_MAX];
+  settingsGetTz(posix, sizeof(posix), g_state.tzLabel, sizeof(g_state.tzLabel));
+  g_state.showDate = settingsShowDate();
 }
 
-// How many screens are in the rotation.
-static uint8_t rotationCount() {
-  uint8_t n = 0;
-  for (uint8_t i = 0; i < SCREEN_ROTATION_COUNT; i++) {
-    if (g_rotationEnabled[i])
-      n++;
-  }
-  return n;
-}
-
-// Advances to the next enabled screen and redraws.
 static void goToNextRotationScreen() {
-  for (uint8_t step = 1; step <= SCREEN_ROTATION_COUNT; step++) {
-    const ScreenId candidate = (ScreenId)((g_screen + step) % SCREEN_ROTATION_COUNT);
-    if (g_rotationEnabled[candidate]) {
-      g_screen = candidate;
-      break;
-    }
-  }
-  g_showingInfo = false;
-  redrawFull("rotated to a new screen");
+  g_screen = (ScreenId)((g_screen + 1) % SCREEN_ROTATION_COUNT);
+  redrawFull("screen rotation");
   g_lastScreenSwitch = millis();
 }
 
@@ -185,14 +176,12 @@ static void goToNextRotationScreen() {
 static uint32_t infoMinute() { return g_state.timeSynced ? (uint32_t)g_state.minute : (millis() / 60000UL); }
 
 static void showInfoScreen() {
-  copyNetworkIntoState();
   g_showingInfo = true;
   g_drawnInfoMinute = infoMinute();
   redrawFull("info screen shown");
 }
 
 static void leaveInfoScreen() {
-  // Dismissing is the acknowledgement, so the flag is only written now.
   settingsMarkInfoShown();
 
   g_showingInfo = false;
@@ -239,19 +228,19 @@ static ButtonEvent pollButton() {
 // doesn't fall linearly, so these steps are uneven.
 static uint8_t batteryLevel() {
   uint32_t sum = 0;
-  for (uint8_t i = 0; i < 8; i++) {
+  for (uint8_t i = 0; i < BATTERY_SAMPLES; i++) {
     sum += analogReadMilliVolts(BATTERY_PIN);
   }
 
-  const float v = (sum / 8.0f / 1000.0f) * BATTERY_DIVIDER;
+  const float v = ((float)sum / BATTERY_SAMPLES / 1000.0f) * BATTERY_DIVIDER;
 
-  if (v >= 4.05f)
+  if (v >= BATTERY_V_100)
     return 100;
-  if (v >= 3.90f)
+  if (v >= BATTERY_V_75)
     return 75;
-  if (v >= 3.75f)
+  if (v >= BATTERY_V_50)
     return 50;
-  if (v >= 3.60f)
+  if (v >= BATTERY_V_25)
     return 25;
   return 0;
 }
@@ -259,7 +248,7 @@ static uint8_t batteryLevel() {
 void setup() {
   Serial.begin(115200);
   delay(SERIAL_BOOT_SETTLE_MS); // let the USB host attach before printing
-  Serial.println("\nDesk Dashboard ");
+  Serial.println("\nDesk Dashboard");
 
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   settingsBegin();
@@ -270,33 +259,21 @@ void setup() {
   reloadDisplaySettings();
 
   copyTimeIntoState();
-  tasksCopyInto(g_state);
-  weatherCopyInto(g_state);
+  g_state.taskCount = tasksCopyInto(g_state.tasks);
 
   // 15KB for the frame guard's canvas.
-  g_probe = new GFXcanvas1(SCREEN_W, SCREEN_H);
-  if (!g_probe || !g_probe->getBuffer()) {
-    Serial.println("[panel] no memory for the frame guard - every redraw will run");
-    g_probe = nullptr;
-  }
+  static GFXcanvas1 canvas(SCREEN_W, SCREEN_H);
+  if (canvas.getBuffer())
+    g_probe = &canvas;
 
   panelBegin();
 
   // Doesn't wait for Wi-Fi. With no connection the clock still draws.
   wifiBegin();
-  copyNetworkIntoState();
+  pollNetwork();
 
   g_state.batteryPct = BATTERY_UNKNOWN;
   g_lastBattPoll = millis() - BATTERY_POLL_MS + 5000;
-
-  if (!g_rotationEnabled[g_screen]) {
-    for (uint8_t i = 0; i < SCREEN_ROTATION_COUNT; i++) {
-      if (g_rotationEnabled[i]) {
-        g_screen = (ScreenId)i;
-        break;
-      }
-    }
-  }
 
   // INFO on the first boot only. A 3 second BOOT hold brings it back.
   if (INFO_ALWAYS_ON_BOOT || !settingsInfoShown()) {
@@ -327,61 +304,32 @@ void loop() {
     }
   }
 
-  // Wi-Fi came up or dropped
   if (millis() - g_lastNetPoll >= NET_POLL_MS) {
     g_lastNetPoll = millis();
-
-    const bool was = g_state.wifiConnected;
-    copyNetworkIntoState();
-
-    if (g_state.wifiConnected != was) {
-      if (g_state.wifiConnected) {
-        Serial.printf("[net] up: %s  %s  %d dBm\n", g_state.ip, g_state.security, (int)g_state.rssi);
-        webBegin();
-        clockStartSync();      // NTP needs a network
-        weatherRequestFetch(); // Weather needs network
-        marketsRequestFetch(); // Quote needs network
-      } else {
-        Serial.println("[net] down");
-        webStop();
-      }
-
-      // Only the icon changed, so repaint just its area. On INFO that area is
-      // the whole screen, since every field there is network state.
-      const Rect r = wifiDirtyRect(activeScreen());
-      panelDrawPartial(r.x, r.y, r.w, r.h, renderActive);
-      noteFrameShown();
+    if (pollNetwork()) {
+      redrawPartial(wifiDirtyRect(activeScreen()));
       g_drawnInfoMinute = infoMinute();
       return;
     }
   }
 
-  // A Save button on the web page. Already saved, so just reload and redraw.
   if (webTakeSyncRequest()) {
     Serial.println("[web] settings synced to the panel");
     reloadDisplaySettings();
     copyTimeIntoState();
-    tasksCopyInto(g_state);
+    g_state.taskCount = tasksCopyInto(g_state.tasks);
     redrawFull("web page pushed new settings");
     g_lastScreenSwitch = millis();
     return;
   }
 
-  // Fresh data. Only repaint if that screen is the one showing.
-  if (weatherTakeUpdate()) {
-    weatherCopyInto(g_state);
-    if (activeScreen() == SCREEN_WEATHER) {
-      redrawFull("fresh weather data landed");
-      return;
-    }
+  if (weatherTakeUpdate() && activeScreen() == SCREEN_WEATHER) {
+    redrawFull("weather updated");
+    return;
   }
-
-  if (marketsTakeUpdate()) {
-    marketsCopyInto(g_state);
-    if (activeScreen() == SCREEN_MARKETS) {
-      redrawFull("fresh market data landed");
-      return;
-    }
+  if (marketsTakeUpdate() && activeScreen() == SCREEN_MARKETS) {
+    redrawFull("markets updated");
+    return;
   }
 
   if (webTakeDismissRequest() && g_showingInfo) {
@@ -392,16 +340,15 @@ void loop() {
 
   switch (pollButton()) {
   case BTN_LONG:
-    // Wipes everything and shows INFO again, as if it were new.
-    Serial.println("[btn] long press - factory reset");
-    settingsFactoryReset();  // timezone, date toggle, display mode, weather, location, info flag
-    tasksReset();            // task list
-    clockBegin();            // re-reads the (now default) timezone: UTC
-    weatherApplySettings();  // location is gone -> back to "SET A LOCATION"
-    marketsApplySettings();  // key is gone -> back to "SET API KEY"
-    reloadDisplaySettings(); // back to cycling, 5 minutes
+    settingsFactoryReset();
+    tasksReset();
+    clockBegin();
+    weatherApplySettings();
+    marketsApplySettings();
+    g_screen = SCREEN_CLOCK;
+    reloadDisplaySettings();
     copyTimeIntoState();
-    tasksCopyInto(g_state);
+    g_state.taskCount = tasksCopyInto(g_state.tasks);
     showInfoScreen();
     return;
   case BTN_SHORT:
@@ -414,41 +361,39 @@ void loop() {
     break;
   }
 
-  // INFO doesn't time out. It repaints once a minute to keep TIME and UPTIME
-  // live, full screen but partial, so there's no flash.
+  // Info stays visible until dismissed and updates its time once a minute.
   if (g_showingInfo) {
     if (infoMinute() != g_drawnInfoMinute) {
       g_drawnInfoMinute = infoMinute();
-      copyNetworkIntoState(); // signal, uptime
-      panelDrawPartial(0, 0, SCREEN_W, SCREEN_H, renderActive);
-      noteFrameShown();
+      redrawPartial({0, 0, SCREEN_W, SCREEN_H});
     }
     delay(20);
     return;
   }
 
   // Static mode never auto-advances, though a short press still steps through.
-  if (g_displayMode == DISPLAY_CYCLE && rotationCount() > 1 && millis() - g_lastScreenSwitch >= g_dwellMs) {
+  if (g_displayMode == DISPLAY_CYCLE && millis() - g_lastScreenSwitch >= g_dwellMs) {
     goToNextRotationScreen();
     return;
   }
 
   // NTP landed, so the whole clock screen changes at once.
   if (g_state.timeSynced != g_drawnSynced) {
-    g_drawnSynced = g_state.timeSynced;
     Serial.printf("[clock] %s\n", g_state.timeSynced ? "synced" : "lost sync");
     redrawFull("NTP sync state changed");
     return;
   }
 
+  if (g_screen == SCREEN_TASKS && strcmp(g_drawnDate, g_state.tasksDate) != 0) {
+    redrawFull("task date changed");
+  }
+
   if (g_screen == SCREEN_CLOCK) {
-    if (g_state.hour != g_drawnHour) {
+    if (g_state.hour != g_drawnHour || strcmp(g_drawnDate, g_state.tasksDate) != 0) {
       // The date is outside the digit band, so this needs the whole screen.
       redrawFull("hour rolled over");
     } else if (g_state.minute != g_drawnMinute) {
-      panelDrawPartial(CLOCK_TIME_BAND_X, CLOCK_TIME_BAND_Y, CLOCK_TIME_BAND_W, CLOCK_TIME_BAND_H,
-                       renderActive); // digits only, no flash
-      noteFrameShown();
+      redrawPartial({CLOCK_TIME_BAND_X, CLOCK_TIME_BAND_Y, CLOCK_TIME_BAND_W, CLOCK_TIME_BAND_H});
       g_drawnMinute = g_state.minute;
     }
   }

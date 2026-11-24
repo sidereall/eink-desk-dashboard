@@ -1,7 +1,9 @@
-// web_ui.cpp - the config page and its API.
-//
-// Handlers never draw, it would stall the response. They save and set a flag.
-// No authentication, by design. Inputs are validated, secrets are never sent back.
+// Serves the settings page and handles its HTTP requests.
+
+#include <ArduinoJson.h>
+#include <errno.h>
+#include <math.h>
+#include <stdlib.h>
 #include <LittleFS.h>
 #include <WebServer.h>
 #include <string.h>
@@ -21,81 +23,84 @@ static WebServer server(80);
 static bool s_running = false;
 static bool s_handlersRegistered = false;
 static bool s_fsReady = false;
-static volatile bool s_dismissRequested = false;
-static volatile bool s_syncRequested = false;
+static bool s_dismissRequested = false;
+static bool s_syncRequested = false;
 
-// The timezone list, for the dropdown.
+static void sendJson(const JsonDocument &doc) {
+  String body;
+  serializeJson(doc, body);
+  server.send(200, "application/json", body);
+}
+
+static void saved() {
+  s_syncRequested = true;
+  server.send(200, "text/plain", "ok");
+}
+
+static bool readInteger(const String &text, long &value) {
+  const char *start = text.c_str();
+  char *end;
+  errno = 0;
+  value = strtol(start, &end, 10);
+  return end != start && *end == '\0' && errno != ERANGE;
+}
+
+static bool readCoordinate(const String &text, float limit, float &value) {
+  const char *start = text.c_str();
+  char *end;
+  value = strtof(start, &end);
+  return end != start && *end == '\0' && isfinite(value) && fabsf(value) <= limit;
+}
+
+// An omitted checkbox is unchecked.
+static bool readCheckbox(const char *name, bool &checked) {
+  const String value = server.arg(name);
+  checked = value == "1";
+  if (!server.hasArg(name) || checked || value == "0")
+    return true;
+  server.send(400, "text/plain", "bad checkbox value");
+  return false;
+}
+
 static void handleTimezones() {
-  String out;
-  out.reserve(2600);
-  out += '[';
-  for (size_t i = 0; i < TIMEZONE_COUNT; i++) {
-    if (i)
-      out += ',';
-    out += "{\"label\":\"";
-    // Uppercased for the web page.
-    for (const char *p = TIMEZONES[i].label; *p; p++)
-      out += (char)toupper((unsigned char)*p);
-    out += "\",\"posix\":\"";
-    out += TIMEZONES[i].posix;
-    out += "\"}";
+  JsonDocument doc;
+  JsonArray zones = doc.to<JsonArray>();
+  for (const TimeZoneEntry &zone : TIMEZONES) {
+    String label(zone.label);
+    label.toUpperCase();
+    JsonObject item = zones.add<JsonObject>();
+    item["label"] = label;
+    item["posix"] = zone.posix;
   }
-  out += ']';
-  server.send(200, "application/json", out);
+  sendJson(doc);
 }
 
-// Screen names, so the page's picker matches the ScreenId enum.
 static void handleScreens() {
-  String out;
-  out.reserve(160);
-  out += '[';
-  for (uint8_t i = 0; i < SELECTABLE_SCREEN_COUNT; i++) {
-    if (i)
-      out += ',';
-    out += "{\"id\":";
-    out += i;
-    out += ",\"name\":\"";
-    out += screenName((ScreenId)i);
-    out += "\"}";
+  JsonDocument doc;
+  JsonArray screens = doc.to<JsonArray>();
+  for (uint8_t i = 0; i < SCREEN_ROTATION_COUNT; i++) {
+    JsonObject item = screens.add<JsonObject>();
+    item["id"] = i;
+    item["name"] = screenName((ScreenId)i);
   }
-  out += ']';
-  server.send(200, "application/json", out);
-}
-
-// Escapes quotes and backslashes, which would otherwise break the JSON.
-static void appendJsonString(String &out, const char *s) {
-  out += '"';
-  for (const char *p = s; *p; p++) {
-    if (*p == '"' || *p == '\\')
-      out += '\\';
-    out += *p;
-  }
-  out += '"';
+  sendJson(doc);
 }
 
 static void handleTasksGet() {
-  AppState tmp;
-  tasksCopyInto(tmp);
-
-  String out;
-  out.reserve(420);
-  out += '[';
-  for (uint8_t i = 0; i < MAX_TASKS; i++) {
-    if (i)
-      out += ',';
-    out += "{\"title\":";
-    appendJsonString(out, tmp.tasks[i].title);
-    out += ",\"done\":";
-    out += tmp.tasks[i].done ? "true" : "false";
-    out += '}';
+  Task slots[MAX_TASKS];
+  tasksCopyInto(slots);
+  JsonDocument doc;
+  JsonArray tasks = doc.to<JsonArray>();
+  for (const Task &task : slots) {
+    JsonObject item = tasks.add<JsonObject>();
+    item["title"] = task.title;
+    item["done"] = task.done;
   }
-  out += ']';
-  server.send(200, "application/json", out);
+  sendJson(doc);
 }
 
 static void handleTasksPost() {
-  Task incoming[MAX_TASKS];
-  memset(incoming, 0, sizeof(incoming));
+  Task incoming[MAX_TASKS]{};
 
   for (uint8_t i = 0; i < MAX_TASKS; i++) {
     char key[4];
@@ -105,14 +110,14 @@ static void handleTasksPost() {
     snprintf(incoming[i].title, TASK_TITLE_MAX, "%s", title.c_str());
 
     snprintf(key, sizeof(key), "d%u", (unsigned)i);
-    incoming[i].done = server.hasArg(key) && server.arg(key) == "1";
+    if (!readCheckbox(key, incoming[i].done))
+      return;
   }
 
   // tasksSetAll cleans the titles, drops blanks and closes any gaps.
   tasksSetAll(incoming, MAX_TASKS);
 
-  s_syncRequested = true;
-  server.send(200, "text/plain", "ok");
+  saved();
 }
 
 // Printable ASCII only. Org_01 can't draw anything above 126.
@@ -131,16 +136,11 @@ static void handleWeatherGet() {
   char name[WX_NAME_MAX];
   settingsGetWeather(&lat, &lon, name, sizeof(name));
 
-  String out;
-  out.reserve(160);
-  out += "{\"lat\":";
-  out += String(lat, 4);
-  out += ",\"lon\":";
-  out += String(lon, 4);
-  out += ",\"name\":";
-  appendJsonString(out, name);
-  out += '}';
-  server.send(200, "application/json", out);
+  JsonDocument doc;
+  doc["lat"] = lat;
+  doc["lon"] = lon;
+  doc["name"] = name;
+  sendJson(doc);
 }
 
 static void handleWeatherPost() {
@@ -149,14 +149,12 @@ static void handleWeatherPost() {
     return;
   }
 
-  const float lat = server.arg("lat").toFloat();
-  const float lon = server.arg("lon").toFloat();
-  if (lat < -90.0f || lat > 90.0f || lon < -180.0f || lon > 180.0f) {
+  float lat, lon;
+  if (!readCoordinate(server.arg("lat"), 90, lat) || !readCoordinate(server.arg("lon"), 180, lon)) {
     server.send(400, "text/plain", "bad coordinates");
     return;
   }
 
-  // The browser strips accents too, but this is what guarantees it.
   char name[WX_NAME_MAX];
   asciiOnly(server.arg("name").c_str(), name, sizeof(name));
   if (name[0] == '\0') {
@@ -169,8 +167,7 @@ static void handleWeatherPost() {
   weatherApplySettings(); // push the new location to the fetch task
   weatherRequestFetch();  // don't wait for the next slot to try it
 
-  s_syncRequested = true;
-  server.send(200, "text/plain", "ok");
+  saved();
 }
 
 // The temperature unit is separate from the location, so it can be changed
@@ -182,11 +179,13 @@ static void handleUnitsGet() {
 }
 
 static void handleUnitsPost() {
-  settingsSetFahrenheit(server.hasArg("f") && server.arg("f") == "1");
+  bool fahrenheit;
+  if (!readCheckbox("f", fahrenheit))
+    return;
+  settingsSetFahrenheit(fahrenheit);
   weatherApplySettings(); // push it to the fetch task
   weatherRequestFetch();  // refetch so the values match the unit
-  s_syncRequested = true;
-  server.send(200, "text/plain", "ok");
+  saved();
 }
 
 // Live device state for the page's status strip.
@@ -213,45 +212,37 @@ static void handleMarketsGet() {
   char symbol[MARKET_SYMBOL_MAX];
   settingsGetMarketSymbol(symbol, sizeof(symbol));
 
-  char body[128];
-  snprintf(body, sizeof(body), "{\"configured\":%s,\"symbol\":\"%s\"}", settingsMarketConfigured() ? "true" : "false",
-           symbol);
-  server.send(200, "application/json", body);
+  JsonDocument doc;
+  doc["configured"] = settingsMarketConfigured();
+  doc["symbol"] = symbol;
+  sendJson(doc);
 }
-// Either field can be sent on its own, so changing the symbol, no need to re-enter the key.
+
 static void handleMarketsPost() {
-  bool changed = false;
-
-  if (server.hasArg("key")) {
-    const String key = server.arg("key");
-    // Twelve Data keys are 32 characters. Accept a range, reject obvious junk.
-    if (key.length() < 8 || key.length() >= MARKET_KEY_MAX) {
-      server.send(400, "text/plain", "bad key length");
-      return;
-    }
-    settingsSetMarketKey(key.c_str());
-    changed = true;
-  }
-
-  if (server.hasArg("symbol")) {
-    const String sym = server.arg("symbol");
-    if (sym.length() < 1 || sym.length() >= MARKET_SYMBOL_MAX) {
-      server.send(400, "text/plain", "bad symbol length");
-      return;
-    }
-    settingsSetMarketSymbol(sym.c_str());
-    changed = true;
-  }
-
-  if (!changed) {
+  const bool hasKey = server.hasArg("key");
+  const bool hasSymbol = server.hasArg("symbol");
+  const String key = server.arg("key");
+  const String symbol = server.arg("symbol");
+  if (!hasKey && !hasSymbol) {
     server.send(400, "text/plain", "nothing to save");
     return;
   }
+  if (hasKey && (key.length() < 8 || key.length() >= MARKET_KEY_MAX)) {
+    server.send(400, "text/plain", "bad key length");
+    return;
+  }
+  if (hasSymbol && (symbol.isEmpty() || symbol.length() >= MARKET_SYMBOL_MAX)) {
+    server.send(400, "text/plain", "bad symbol length");
+    return;
+  }
+  if (hasKey)
+    settingsSetMarketKey(key.c_str());
+  if (hasSymbol)
+    settingsSetMarketSymbol(symbol.c_str());
 
   marketsApplySettings();
   marketsRequestFetch();
-  s_syncRequested = true;
-  server.send(200, "text/plain", "ok");
+  saved();
 }
 
 static void handleClockGet() {
@@ -270,13 +261,14 @@ static void handleClockGet() {
     snprintf(now, sizeof(now), "waiting for NTP");
   }
 
-  char body[320];
-  snprintf(body, sizeof(body),
-           "{\"tz\":\"%s\",\"label\":\"%s\",\"showDate\":%s,\"synced\":%s,"
-           "\"infoSeen\":%s,\"now\":\"%s\"}",
-           posix, label, settingsShowDate() ? "true" : "false", clockIsSynced() ? "true" : "false",
-           settingsInfoShown() ? "true" : "false", now);
-  server.send(200, "application/json", body);
+  JsonDocument doc;
+  doc["tz"] = posix;
+  doc["label"] = label;
+  doc["showDate"] = settingsShowDate();
+  doc["synced"] = clockIsSynced();
+  doc["infoSeen"] = settingsInfoShown();
+  doc["now"] = now;
+  sendJson(doc);
 }
 
 // Current settings plus the allowed dwell range, which builds the dropdown.
@@ -313,7 +305,9 @@ static void handleClockPost() {
   }
 
   const String label = server.hasArg("label") ? server.arg("label") : posix;
-  const bool showDate = server.hasArg("date") && server.arg("date") == "1";
+  bool showDate;
+  if (!readCheckbox("date", showDate))
+    return;
 
   settingsSetTz(posix.c_str(), label.c_str());
   settingsSetShowDate(showDate);
@@ -321,8 +315,7 @@ static void handleClockPost() {
   // No network needed, it only changes how the time is displayed.
   clockSetTimezone(posix.c_str());
 
-  s_syncRequested = true;
-  server.send(200, "text/plain", "ok");
+  saved();
 }
 
 static void handleDisplayPost() {
@@ -331,30 +324,30 @@ static void handleDisplayPost() {
     return;
   }
 
-  const long mode = server.arg("mode").toInt();
-  const long screen = server.arg("screen").toInt();
-  const long dwell = server.arg("dwell").toInt();
-
-  if (mode != DISPLAY_CYCLE && mode != DISPLAY_STATIC) {
+  long mode, screen, dwell;
+  if (!readInteger(server.arg("mode"), mode) || (mode != DISPLAY_CYCLE && mode != DISPLAY_STATIC)) {
     server.send(400, "text/plain", "bad mode");
     return;
   }
-  if (screen < 0 || screen >= SELECTABLE_SCREEN_COUNT) {
+  if (!readInteger(server.arg("screen"), screen) || screen < 0 || screen >= SCREEN_ROTATION_COUNT) {
     server.send(400, "text/plain", "bad screen");
     return;
   }
-  if (dwell < DWELL_MIN_MINUTES || dwell > DWELL_MAX_MINUTES || (dwell % DWELL_STEP_MINUTES) != 0) {
+  if (!readInteger(server.arg("dwell"), dwell) || dwell < DWELL_MIN_MINUTES ||
+      dwell > DWELL_MAX_MINUTES || dwell % DWELL_STEP_MINUTES != 0) {
     server.send(400, "text/plain", "bad dwell");
     return;
   }
 
+  bool dark;
+  if (!readCheckbox("dark", dark))
+    return;
   settingsSetDisplayMode((uint8_t)mode);
   settingsSetStaticScreen((uint8_t)screen);
   settingsSetDwellMinutes((uint8_t)dwell);
-  settingsSetDarkMode(server.hasArg("dark") && server.arg("dark") == "1");
+  settingsSetDarkMode(dark);
 
-  s_syncRequested = true;
-  server.send(200, "text/plain", "ok");
+  saved();
 }
 
 static void handleDismiss() {
@@ -375,12 +368,9 @@ static void handleRoot() {
 
 // Font served from the filesystem like the page itself.
 static void handleFont() {
-  if (!LittleFS.exists("/Micro5.ttf")) {
-    return;
-  }
-
   File f = LittleFS.open("/Micro5.ttf", "r");
   if (!f) {
+    server.send(404, "text/plain", "font missing from filesystem");
     return;
   }
 
@@ -418,7 +408,7 @@ void webBegin() {
     if (s_fsReady) {
       Serial.println("[web] LittleFS mounted");
     } else {
-      // The API still works, but the page will 404 until the files are uploaded.
+      // API routes remain available without the filesystem.
       Serial.println("[web] LittleFS MOUNT FAILED - run: pio run -t uploadfs");
     }
   }
@@ -442,8 +432,6 @@ void webService() {
   if (s_running)
     server.handleClient();
 }
-
-bool webIsRunning() { return s_running; }
 
 bool webTakeDismissRequest() {
   if (!s_dismissRequested)

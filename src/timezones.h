@@ -1,17 +1,5 @@
-// timezones.h - the list for the timezone picker.
-//
-// These are POSIX TZ strings, not plain offsets. An offset like "+1" is wrong
-// for half the year; a POSIX string carries the DST rules too:
-//
-//     CET-1CEST,M3.5.0,M10.5.0/3
-//     |    |     |          `-- back, last Sunday of October, 03:00
-//     |    |     `------------- forward, last Sunday of March
-//     |    `------------------- summer name
-//     `------------------------ standard name, 1h east of UTC
-//
-// localtime_r() applies those rules itself, so DST works with no network.
-//
-// Included by web_ui.cpp only - it's static, so each include is another copy.
+// Lists the time zones and POSIX rules available on the settings page.
+
 #pragma once
 #include <stddef.h>
 
@@ -20,6 +8,7 @@ struct TimeZoneEntry {
   const char *posix; // the DST rules the clock applies
 };
 
+// POSIX rules include daylight-saving transitions, so local time works offline.
 static const TimeZoneEntry TIMEZONES[] = {
     {"UTC", "UTC0"},
 

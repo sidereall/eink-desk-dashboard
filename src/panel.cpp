@@ -1,4 +1,5 @@
-// panel.cpp - drives the e-ink display: full and partial refreshes, and the GxEPD2 setup.
+// Drives full and partial refreshes on the e-ink panel.
+
 #define ENABLE_GxEPD2_GFX 0 // GxEPD2_BW inherits from Adafruit_GFX directly
 
 #include <GxEPD2_BW.h>
@@ -51,12 +52,12 @@ static void alignToBytes(int16_t &x, int16_t &w) {
   w = right - x;
 }
 
-void panelDrawPartial(int16_t x, int16_t y, int16_t w, int16_t h, DrawCallback draw) {
+bool panelDrawPartial(int16_t x, int16_t y, int16_t w, int16_t h, DrawCallback draw) {
   // Partial updates leave ghosting behind. Full refresh fixes it.
   if (partialsSinceFull >= MAX_PARTIALS_BEFORE_FULL) {
     Serial.println("[panel] FULL refresh  <- ghost cleanup (partial budget spent)");
     panelDrawFull(draw);
-    return;
+    return true;
   }
 
   alignToBytes(x, w);
@@ -68,4 +69,5 @@ void panelDrawPartial(int16_t x, int16_t y, int16_t w, int16_t h, DrawCallback d
   display.setPartialWindow(x, y, w, h);
   renderAndPush(draw);
   partialsSinceFull++;
+  return false;
 }

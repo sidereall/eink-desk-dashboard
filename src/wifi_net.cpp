@@ -1,5 +1,8 @@
-// wifi_net.cpp
+// Manages Wi-Fi reconnection and HTTPS requests for dashboard data.
+
+#include <HTTPClient.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <esp_wifi.h>
 #include <stdio.h>
 #include <string.h>
@@ -12,11 +15,7 @@ static uint32_t s_nextAttempt = 0;
 static uint32_t s_backoffMs = WIFI_RETRY_MIN_MS; // doubles on each failure
 static uint32_t s_offlineSince = 0;
 
-// The only place the credentials are read.
-static const char *credSsid() { return WIFI_SSID; }
-static const char *credPassword() { return WIFI_PASSWORD; }
-
-// Runs on the Wi-Fi task, not in loop(). Log and set flags only, never draw.
+// Runs on the Wi-Fi task, not in loop(). Only log here.
 static void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
   switch (event) {
   case ARDUINO_EVENT_WIFI_STA_GOT_IP:
@@ -58,8 +57,8 @@ void wifiBegin() {
   WiFi.onEvent(onWiFiEvent);
   applyRadioConfig();
 
-  Serial.printf("[wifi] connecting to %s\n", credSsid());
-  WiFi.begin(credSsid(), credPassword()); // returns immediately
+  Serial.printf("[wifi] connecting to %s\n", WIFI_SSID);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD); // returns immediately
 
   s_nextAttempt = millis() + s_backoffMs;
   s_offlineSince = millis();
@@ -70,14 +69,15 @@ bool wifiIsConnected() { return WiFi.status() == WL_CONNECTED; }
 // Retries with a growing delay, and restarts the radio if that isn't working.
 void wifiService() {
   if (wifiIsConnected()) {
-    s_backoffMs = WIFI_RETRY_MIN_MS; // reset the ladder
+    s_nextAttempt = millis();
+    s_backoffMs = WIFI_RETRY_MIN_MS;
     s_offlineSince = 0;
     return;
   }
 
   if (s_offlineSince == 0)
     s_offlineSince = millis();
-  if (millis() < s_nextAttempt)
+  if ((int32_t)(millis() - s_nextAttempt) < 0)
     return;
 
   // Down this long means begin() isn't getting anywhere. Restart the radio.
@@ -91,7 +91,7 @@ void wifiService() {
   }
 
   Serial.printf("[wifi] retry (next attempt in %lus)\n", (unsigned long)(s_backoffMs / 1000));
-  WiFi.begin(credSsid(), credPassword());
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   s_nextAttempt = millis() + s_backoffMs;
   s_backoffMs = (s_backoffMs * 2 > WIFI_RETRY_MAX_MS) ? WIFI_RETRY_MAX_MS : s_backoffMs * 2;
@@ -124,7 +124,7 @@ void wifiGetStatus(WifiStatus &out) {
 
   if (!out.connected) {
     snprintf(out.ip, sizeof(out.ip), "%s", "0.0.0.0");
-    snprintf(out.ssid, sizeof(out.ssid), "%s", credSsid());
+    snprintf(out.ssid, sizeof(out.ssid), "%s", WIFI_SSID);
     snprintf(out.security, sizeof(out.security), "%s", "-");
     out.rssi = 0;
     return;
@@ -141,4 +141,34 @@ void wifiGetStatus(WifiStatus &out) {
   } else {
     snprintf(out.security, sizeof(out.security), "%s", "?");
   }
+}
+
+bool wifiGetJson(const char *url, uint16_t timeoutMs, JsonDocument &doc) {
+  extern const uint8_t bundleStart[] asm("_binary_x509_crt_bundle_start");
+  extern const uint8_t bundleEnd[] asm("_binary_x509_crt_bundle_end");
+  WiFiClientSecure client;
+  client.setCACertBundle(bundleStart, (size_t)(bundleEnd - bundleStart));
+  client.setTimeout(timeoutMs / 1000);
+
+  HTTPClient http;
+  http.setConnectTimeout(timeoutMs);
+  http.setTimeout(timeoutMs);
+  http.setReuse(false);
+  if (!http.begin(client, url))
+    return false;
+
+  const int status = http.GET();
+  if (status != HTTP_CODE_OK) {
+    Serial.printf("[http] request failed: %d\n", status);
+    http.end();
+    return false;
+  }
+
+  // getString() removes chunk framing before ArduinoJson reads the response.
+  const String body = http.getString();
+  http.end();
+  const DeserializationError error = deserializeJson(doc, body);
+  if (error)
+    Serial.printf("[http] invalid JSON: %s\n", error.c_str());
+  return !error;
 }

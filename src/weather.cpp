@@ -1,9 +1,8 @@
-// weather.cpp
+// Fetches current conditions and a four-day forecast from Open-Meteo.
+
 #include <Arduino.h>
-#include <ArduinoJson.h>
-#include <HTTPClient.h>
-#include <WiFi.h>
-#include <WiFiClientSecure.h>
+#include <freertos/semphr.h>
+#include <freertos/task.h>
 #include <ctype.h>
 #include <math.h>
 #include <string.h>
@@ -12,12 +11,7 @@
 #include "clock_time.h"
 #include "config.h"
 #include "weather.h"
-
-// Root certificates built into the firmware, so HTTPS is actually verified.
-extern const uint8_t rootca_crt_bundle_start[] asm("_binary_x509_crt_bundle_start");
-extern const uint8_t rootca_crt_bundle_end[] asm("_binary_x509_crt_bundle_end");
-
-static const size_t ROOTCA_BUNDLE_SIZE = (size_t)(rootca_crt_bundle_end - rootca_crt_bundle_start);
+#include "wifi_net.h"
 
 // The location, copied in by the loop task. The fetch task never reads NVS.
 struct WxConfig {
@@ -29,12 +23,12 @@ struct WxConfig {
 };
 
 static SemaphoreHandle_t s_lock = nullptr;
-static WxConfig s_cfg;         // guarded
-static WeatherData s_data;     // guarded
-static bool s_updated = false; // guarded
-static volatile bool s_forceFetch = false;
-static uint32_t s_lastOkMs = 0; // guarded
-static bool s_everOk = false;   // guarded
+static WxConfig s_cfg;
+static WeatherData s_data;
+static bool s_updated = false;
+static bool s_forceFetch = false;
+static uint32_t s_configVersion = 0;
+static uint32_t s_lastOkMs = 0;
 
 static inline void lock() {
   if (s_lock)
@@ -114,26 +108,28 @@ static const char *textFromWmo(int code) {
 }
 
 // "2026-07-14" -> "TUE", using the API's date so other timezones stay right.
-static void weekdayFromIso(const char *iso, char *out, size_t n) {
-  int y = 0, m = 0, d = 0;
-  if (!iso || sscanf(iso, "%d-%d-%d", &y, &m, &d) != 3) {
-    snprintf(out, n, "?");
-    return;
-  }
+static bool weekdayFromIso(const char *iso, char *out, size_t n) {
+  int y, m, d;
+  char extra;
+  if (!iso || sscanf(iso, "%d-%d-%d%c", &y, &m, &d, &extra) != 3 || y < 1970 || y > 9999 ||
+      m < 1 || m > 12 || d < 1 || d > 31)
+    return false;
 
-  struct tm t;
-  memset(&t, 0, sizeof(t));
+  struct tm t{};
   t.tm_year = y - 1900;
   t.tm_mon = m - 1;
   t.tm_mday = d;
-  t.tm_hour = 12; // midday, so DST can't shift the date
-  mktime(&t);     // works out the weekday
+  t.tm_hour = 12;
+  t.tm_isdst = -1;
+  if (mktime(&t) == (time_t)-1 || t.tm_mday != d)
+    return false;
 
   char buf[8];
   strftime(buf, sizeof(buf), "%a", &t);
   for (char *p = buf; *p; p++)
     *p = (char)toupper((unsigned char)*p);
   snprintf(out, n, "%s", buf);
+  return true;
 }
 
 static void upperAscii(char *s) {
@@ -141,9 +137,16 @@ static void upperAscii(char *s) {
     *s = (char)toupper((unsigned char)*s);
 }
 
-// One fetch. Runs on the weather task.
+static bool readTemperature(JsonVariantConst field, int16_t &temperature) {
+  if (!field.is<float>())
+    return false;
+  const float value = field.as<float>();
+  if (!isfinite(value) || value < INT16_MIN || value > INT16_MAX)
+    return false;
+  temperature = (int16_t)lroundf(value);
+  return true;
+}
 static bool fetchOnce(const WxConfig &cfg, WeatherData &out) {
-  // printf can't print floats on the ESP32, so convert them to text first.
   const String latStr = String(cfg.lat, 4);
   const String lonStr = String(cfg.lon, 4);
 
@@ -156,209 +159,106 @@ static bool fetchOnce(const WxConfig &cfg, WeatherData &out) {
            "&timezone=auto&forecast_days=5%s",
            latStr.c_str(), lonStr.c_str(), cfg.fahrenheit ? "&temperature_unit=fahrenheit" : "");
 
-  Serial.printf("[wx] heap=%u\n", (unsigned)ESP.getFreeHeap());
-  Serial.printf("[wx] GET %s\n", url);
+  JsonDocument doc;
+  if (!wifiGetJson(url, WEATHER_HTTP_TIMEOUT_MS, doc))
+    return false;
 
-  bool ok = false;
+  JsonObjectConst current = doc["current"];
+  if (!current["weather_code"].is<int>() || !readTemperature(current["temperature_2m"], out.tempNow))
+    return false;
+  const int code = current["weather_code"];
+  if (code < 0)
+    return false;
+  out.iconNow = iconFromWmo(code);
+  snprintf(out.status, sizeof(out.status), "%s", textFromWmo(code));
 
-  // Scoped so TLS frees its ~40KB before this returns.
-  {
-    WiFiClientSecure client;
-    client.setCACertBundle(rootca_crt_bundle_start, ROOTCA_BUNDLE_SIZE);
-    client.setTimeout(WEATHER_HTTP_TIMEOUT_MS / 1000); // seconds
+  JsonObjectConst daily = doc["daily"];
+  if (!readTemperature(daily["temperature_2m_max"][0], out.tempHigh) ||
+      !readTemperature(daily["temperature_2m_min"][0], out.tempLow))
+    return false;
 
-    HTTPClient http;
-    http.setConnectTimeout(WEATHER_HTTP_TIMEOUT_MS); // milliseconds
-    http.setTimeout(WEATHER_HTTP_TIMEOUT_MS);
-    http.setReuse(false);
-
-    if (!http.begin(client, url)) {
-      Serial.println("[wx] http begin failed");
+  for (uint8_t i = 0; i < WX_CARD_COUNT; i++) {
+    const size_t day = i + 1;
+    WeatherDay &card = out.days[i];
+    JsonVariantConst weatherCode = daily["weather_code"][day];
+    if (!weatherCode.is<int>() || weatherCode.as<int>() < 0 ||
+        !readTemperature(daily["temperature_2m_max"][day], card.temp) ||
+        !weekdayFromIso(daily["time"][day].as<const char *>(), card.name, sizeof(card.name)))
       return false;
-    }
-
-    const int status = http.GET();
-    if (status != HTTP_CODE_OK) {
-      // -1 usually means TLS or DNS, not a real HTTP status.
-      Serial.printf("[wx] http %d | heap=%u\n", status, (unsigned)ESP.getFreeHeap());
-      http.end();
-      return false;
-    }
-
-    // getString(), not getStream(). The reply is chunked, and the raw stream
-    // still has the chunk markers in it, which the JSON parser rejects.
-    const String payload = http.getString();
-    const int declared = http.getSize();
-    http.end();
-
-    JsonDocument doc;
-    const DeserializationError err = deserializeJson(doc, payload);
-
-    if (err) {
-      Serial.printf("[wx] json: %s | content-length=%d | got %u bytes\n", err.c_str(), declared,
-                    (unsigned)payload.length());
-      Serial.printf("[wx] body starts: %.80s\n", payload.c_str());
-      return false;
-    }
-
-    JsonObject cur = doc["current"];
-    if (cur.isNull()) {
-      Serial.println("[wx] no 'current' in response");
-      return false;
-    }
-
-    const int codeNow = cur["weather_code"] | -1;
-    if (codeNow < 0)
-      return false;
-
-    out.tempNow = (int8_t)lroundf(cur["temperature_2m"] | 0.0f);
-    out.iconNow = (uint8_t)iconFromWmo(codeNow);
-    snprintf(out.status, sizeof(out.status), "%s", textFromWmo(codeNow));
-
-    JsonObject daily = doc["daily"];
-    JsonArray dTime = daily["time"];
-    JsonArray dCode = daily["weather_code"];
-    JsonArray dMax = daily["temperature_2m_max"];
-    JsonArray dMin = daily["temperature_2m_min"];
-
-    if (dTime.size() < (size_t)(WX_CARD_COUNT + 1)) {
-      Serial.println("[wx] short daily array");
-      return false;
-    }
-
-    out.tempHigh = (int8_t)lroundf(dMax[0] | 0.0f); // index 0 is today
-    out.tempLow = (int8_t)lroundf(dMin[0] | 0.0f);
-
-    for (uint8_t i = 0; i < WX_CARD_COUNT; i++) { // 1 to 4 are the cards
-      const size_t k = (size_t)i + 1;
-      weekdayFromIso(dTime[k] | "", out.days[i].name, sizeof(out.days[i].name));
-      out.days[i].temp = (int8_t)lroundf(dMax[k] | 0.0f);
-      out.days[i].icon = (uint8_t)iconFromWmo(dCode[k] | 0);
-    }
-
-    ok = true;
+    card.icon = iconFromWmo(weatherCode.as<int>());
   }
-
-  snprintf(out.location, sizeof(out.location), "%s", cfg.name);
-  upperAscii(out.location);
-
-  // updated is filled in by weatherCopyInto(), not here
-  out.configured = true;
   out.valid = true;
-  out.stale = false;
-  return ok;
-}
-
-// Time until the next fetch. Falls back to a plain interval without a clock.
-static uint32_t msUntilNextSlot() {
-  struct tm t;
-  if (!clockGetLocal(t))
-    return WEATHER_FETCH_MS;
-
-  const int32_t slotSecs = (int32_t)WEATHER_SLOT_MINUTES * 60;
-  const int32_t offset = WEATHER_SLOT_OFFSET_SEC;
-  const int32_t now = (int32_t)t.tm_hour * 3600 + t.tm_min * 60 + t.tm_sec;
-
-  // Last slot boundary, plus the offset.
-  int32_t target = (now / slotSecs) * slotSecs + offset;
-
-  // Step on until it's in the future, so we don't fetch the same slot twice.
-  while (target - now <= FETCH_SLOT_MIN_GAP_SEC)
-    target += slotSecs;
-
-  return (uint32_t)(target - now) * 1000UL;
-}
-
-static void logNextSlot(uint32_t inMs) {
-  struct tm t;
-  if (!clockGetLocal(t)) {
-    Serial.printf("[wx] next fetch in %lus\n", (unsigned long)(inMs / 1000));
-    return;
-  }
-  const time_t at = time(nullptr) + (time_t)(inMs / 1000UL);
-  struct tm tt;
-  localtime_r(&at, &tt);
-  Serial.printf("[wx] next fetch at %02d:%02d (in %lum)\n", tt.tm_hour, tt.tm_min, (unsigned long)(inMs / 60000UL));
+  return true;
 }
 
 static void weatherTask(void *) {
-  uint32_t nextAt = millis() + FETCH_FIRST_DELAY_MS; // let Wi-Fi settle first
+  uint32_t nextAt = millis() + FETCH_FIRST_DELAY_MS;
 
   for (;;) {
-    const bool due = (int32_t)(millis() - nextAt) >= 0;
-
-    // Wait for NTP so the data isn't stamped "--:--", but give up eventually.
-    if (!clockIsSynced() && millis() < FETCH_NTP_GRACE_MS) {
-      vTaskDelay(pdMS_TO_TICKS(500));
-      continue;
-    }
-
-    if ((due || s_forceFetch) && WiFi.status() == WL_CONNECTED) {
+    if (wifiIsConnected() && (clockIsSynced() || millis() >= FETCH_NTP_GRACE_MS)) {
       WxConfig cfg;
       lock();
-      cfg = s_cfg;
+      const bool fetch = s_cfg.configured && (s_forceFetch || (int32_t)(millis() - nextAt) >= 0);
+      const uint32_t version = s_configVersion;
+      if (fetch) {
+        cfg = s_cfg;
+        s_forceFetch = false;
+      }
       unlock();
 
-      if (cfg.configured) {
-        s_forceFetch = false;
-
-        WeatherData fresh;
-        memset(&fresh, 0, sizeof(fresh));
-
-        if (fetchOnce(cfg, fresh)) {
-          // Publish it all in one go, so the loop task can't see half of it.
-          lock();
-          s_data = fresh;
-          s_lastOkMs = millis();
-          s_everOk = true;
+      if (fetch) {
+        WeatherData fresh{};
+        const bool ok = fetchOnce(cfg, fresh);
+        lock();
+        // A save or factory reset can change the settings during HTTPS.
+        if (version == s_configVersion) {
+          if (ok) {
+            s_data = fresh;
+            s_lastOkMs = millis();
+          }
           s_updated = true;
-          unlock();
-
-          const uint32_t wait = msUntilNextSlot();
-          nextAt = millis() + wait;
-          Serial.printf("[wx] ok: %d C, %s\n", (int)fresh.tempNow, fresh.status);
-          logNextSlot(wait);
-        } else {
-          // Keep the old data and retry soon, rather than waiting for the next
-          // slot half an hour away.
-          nextAt = millis() + WEATHER_RETRY_MS;
-          Serial.printf("[wx] fetch failed, retrying in %lum\n", (unsigned long)(WEATHER_RETRY_MS / 60000UL));
         }
+        unlock();
 
-        // Near zero here means the stack is too small, which reads as a random
-        // reboot when TLS overruns it.
-        Serial.printf("[wx] task stack free: %u bytes | heap=%u\n", (unsigned)uxTaskGetStackHighWaterMark(nullptr),
-                      (unsigned)ESP.getFreeHeap());
+        const uint32_t delay = ok ? clockNextFetchDelay(WEATHER_FETCH_MS, WEATHER_SLOT_OFFSET_SEC) : WEATHER_RETRY_MS;
+        nextAt = millis() + delay;
       }
     }
-
-    vTaskDelay(pdMS_TO_TICKS(1000)); // check again in a second
+    vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
 
 void weatherBegin() {
   s_lock = xSemaphoreCreateMutex();
-  memset(&s_cfg, 0, sizeof(s_cfg));
-  memset(&s_data, 0, sizeof(s_data));
 
   weatherApplySettings();
-  xTaskCreate(weatherTask, "weather", WEATHER_TASK_STACK, nullptr, 1, nullptr);
+  if (s_lock)
+    xTaskCreate(weatherTask, "weather", WEATHER_TASK_STACK, nullptr, 1, nullptr);
 }
 
 // Loop task only, the one place NVS is read for weather.
 void weatherApplySettings() {
-  WxConfig c;
-  memset(&c, 0, sizeof(c));
+  WxConfig c{};
   settingsGetWeather(&c.lat, &c.lon, c.name, sizeof(c.name));
-  c.configured = settingsWeatherConfigured();
+  c.configured = c.name[0] != '\0';
   c.fahrenheit = settingsFahrenheit();
 
   lock();
-  s_cfg = c;
+  const bool same = c.lat == s_cfg.lat && c.lon == s_cfg.lon && c.fahrenheit == s_cfg.fahrenheit &&
+                    strcmp(c.name, s_cfg.name) == 0;
+  if (!same) {
+    s_cfg = c;
+    ++s_configVersion;
+    s_data = {};
+  }
   unlock();
 }
 
-void weatherRequestFetch() { s_forceFetch = true; }
+void weatherRequestFetch() {
+  lock();
+  s_forceFetch = true;
+  unlock();
+}
 
 bool weatherTakeUpdate() {
   lock();
@@ -372,7 +272,6 @@ void weatherCopyInto(AppState &s) {
   lock();
   s.weather = s_data;
   const WxConfig cfg = s_cfg;
-  const bool everOk = s_everOk;
   const uint32_t okMs = s_lastOkMs;
   unlock();
 
@@ -381,8 +280,7 @@ void weatherCopyInto(AppState &s) {
   snprintf(s.weather.location, sizeof(s.weather.location), "%s", cfg.name);
   upperAscii(s.weather.location);
 
-  if (!everOk) {
-    s.weather.valid = false;
+  if (!s.weather.valid) {
     s.weather.stale = false;
     snprintf(s.weather.updated, sizeof(s.weather.updated), "--:--");
     return;

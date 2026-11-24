@@ -92,7 +92,7 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* MASTHEAD ------------------------------------------------------------ */
+    /* Masthead */
     header {
       display: flex;
       align-items: baseline;
@@ -129,7 +129,7 @@
       background: var(--ok);
     }
 
-    /* STATUS STRIP -------------------------------------------------------- */
+    /* Status strip */
     .stats {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -166,7 +166,7 @@
       color: var(--mid);
     }
 
-    /* FIRST-BOOT / RESET INFO SCREEN --------------------------------------- */
+    /* Info screen after setup or reset */
     .info-notice {
       background: var(--card);
       border: 1px solid var(--line);
@@ -179,7 +179,7 @@
       margin: 0;
     }
 
-    /* SECTION LIST -------------------------------------------------------- */
+    /* Section list */
     .panels {
       background: var(--card);
       border: 1px solid var(--line);
@@ -267,7 +267,7 @@
       padding: 0 1.25rem 1.25rem 3.2rem;
     }
 
-    /* FIELDS -------------------------------------------------------------- */
+    /* Fields */
     .lbl {
       font-size: var(--t-note);
       color: var(--soft);
@@ -358,7 +358,7 @@
       accent-color: var(--ink);
     }
 
-    /* BUTTONS ------------------------------------------------------------- */
+    /* Buttons */
     button {
       font-size: var(--t-field);
       font-weight: 600;
@@ -416,7 +416,7 @@
       opacity: .45;
     }
 
-    /* TASK ROWS ----------------------------------------------------------- */
+    /* Task rows */
     .task {
       display: flex;
       align-items: center;
@@ -455,7 +455,7 @@
       border-color: var(--line);
     }
 
-    /* SEARCH -------------------------------------------------------------- */
+    /* Search */
     .search {
       display: flex;
       gap: .6rem;
@@ -610,6 +610,13 @@
       <div class="body">
         <div class="inner">
           <div id="tl"></div>
+          <template id="taskRow">
+            <div class="task">
+              <input type="checkbox">
+              <input type="text" maxlength="47" placeholder="...">
+              <button class="del" title="Delete">&times;</button>
+            </div>
+          </template>
           <div class="actions">
             <button onclick="sendTasks()">SAVE</button> <span id="tr" class="m"></span>
           </div>
@@ -714,14 +721,28 @@
   </div>
 
   <script>
-    const esc = s => s.replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/</g, '&lt;');
     const deaccent = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const get = url => fetch(url).then(r => r.json());
 
-    // Shows the result of a save next to its button.
-    function status(el, ok, okText = 'SAVED', failText = 'FAILED') {
-      el.textContent = ok ? okText : failText;
+    async function get(url) {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(response.statusText);
+      return response.json();
+    }
+
+    function feedback(el, message, ok = false) {
+      el.textContent = message;
       el.className = ok ? 'm ok' : 'm';
+    }
+
+    async function post(url, fields, result, failure = 'FAILED - PLEASE TRY AGAIN') {
+      try {
+        const response = await fetch(url, { method: 'POST', body: new URLSearchParams(fields) });
+        if (response.ok) return true;
+      } catch {
+        // The device may have dropped off Wi-Fi.
+      }
+      feedback(result, failure);
+      return false;
     }
 
     // Open one section and close the others.
@@ -731,7 +752,7 @@
       if (!wasOpen) section.classList.add('open');
     }
 
-    // STATUS STRIP -----------------------------------------------------
+    // Status strip
     // Live device state, including whether the reset info screen needs dismissing.
     async function loadStatus() {
       try {
@@ -749,79 +770,99 @@
 
     async function dismissInfo() {
       dismissInfoButton.disabled = true;
-      status(dismissInfoStatus, false, '', 'DISMISSING...');
-      try {
-        const r = await fetch('/api/dismiss', { method: 'POST' });
-        if (!r.ok) throw new Error('Dismiss failed');
-        status(dismissInfoStatus, true, 'RETURNING TO DASHBOARD...');
-        // The device handles the request and refreshes the e-ink panel in its main loop.
+      feedback(dismissInfoStatus, 'DISMISSING...');
+      if (await post('/api/dismiss', {}, dismissInfoStatus)) {
+        feedback(dismissInfoStatus, 'RETURNING TO DASHBOARD...', true);
         await loadStatus();
-      } catch (e) {
-        status(dismissInfoStatus, false, '', 'FAILED - PLEASE TRY AGAIN');
-      } finally {
-        dismissInfoButton.disabled = false;
+      }
+      dismissInfoButton.disabled = false;
+    }
+
+    // Clock
+    async function syncClock() {
+      const option = tz.selectedOptions[0];
+      if (!option) return;
+      const fields = { tz: option.value, label: option.text, date: sd.checked ? 1 : 0 };
+      if (await post('/api/clock', fields, cr)) {
+        sumClock.textContent = fields.label;
+        feedback(cr, 'SAVED', true);
       }
     }
 
-    // CLOCK ------------------------------------------------------------
-    async function syncClock() {
-      const o = tz.selectedOptions[0];
-      const q = new URLSearchParams({ tz: tz.value, label: o.dataset.l, date: sd.checked ? 1 : 0 });
-      const r = await fetch('/api/clock?' + q, { method: 'POST' });
-      status(cr, r.ok);
-      setTimeout(load, 600);
+    // Tasks
+    let tasks = [];
+    let taskEdits = 0;
+
+    function taskEdited() {
+      taskEdits++;
+      showTaskCount();
     }
 
-    // TASKS ------------------------------------------------------------
-    let TASKS = [];
+    function showTaskCount() {
+      sumTasks.textContent = tasks.filter(task => task.title).length + ' SET';
+    }
 
     function drawTasks() {
-      tl.innerHTML = TASKS.map((t, i) =>
-        `<div class="task">
-           <input type="checkbox" ${t.done ? 'checked' : ''} onchange="TASKS[${i}].done=this.checked;drawTasks()">
-           <input type="text" maxlength="47" value="${esc(t.title)}" placeholder="..." ${t.done ? 'disabled' : ''} oninput="TASKS[${i}].title=this.value">
-           <button class="del" onclick="delTask(${i})" title="Delete">&times;</button>
-         </div>`).join('');
-      sumTasks.textContent = TASKS.filter(t => t.title).length + ' SET';
+      tl.replaceChildren();
+      tasks.forEach((task, i) => {
+        const row = taskRow.content.firstElementChild.cloneNode(true);
+        const [check, title] = row.querySelectorAll('input');
+        check.checked = task.done;
+        title.value = task.title;
+        title.disabled = task.done;
+        check.onchange = () => {
+          task.done = check.checked;
+          title.disabled = task.done;
+          taskEdited();
+        };
+        title.oninput = () => {
+          task.title = title.value;
+          taskEdited();
+        };
+        row.querySelector('button').onclick = () => {
+          tasks.splice(i, 1);
+          tasks.push({ title: '', done: false });
+          taskEdited();
+          drawTasks();
+        };
+        tl.append(row);
+      });
+      showTaskCount();
     }
 
-    // Removing a task shifts the rest up and leaves an empty slot at the end.
-    function delTask(i) {
-      TASKS.splice(i, 1);
-      TASKS.push({ title: '', done: false });
-      drawTasks();
-    }
-
-    async function loadTasks() {
-      TASKS = await get('/api/tasks');
-      while (TASKS.length < 5) TASKS.push({ title: '', done: false });
-      drawTasks();
+    async function loadTasks(revision = taskEdits) {
+      const saved = await get('/api/tasks');
+      if (revision === taskEdits) {
+        tasks = saved;
+        drawTasks();
+      }
     }
 
     async function sendTasks() {
-      const q = new URLSearchParams();
-      TASKS.forEach((t, i) => {
-        q.append('t' + i, t.title);
-        q.append('d' + i, t.done ? 1 : 0);
+      const fields = {};
+      const revision = taskEdits;
+      tasks.forEach((task, i) => {
+        fields['t' + i] = task.title;
+        fields['d' + i] = task.done ? 1 : 0;
       });
-      const r = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: q.toString()
-      });
-      status(tr, r.ok);
-      setTimeout(loadTasks, 600);
+      if (await post('/api/tasks', fields, tr)) {
+        feedback(tr, 'SAVED', true);
+        // The device trims titles and compacts empty slots.
+        try { await loadTasks(revision); }
+        catch { feedback(tr, 'SAVED - REFRESH FAILED'); }
+      }
     }
 
-    // WEATHER ----------------------------------------------------------
+    // Weather
     // The city lookup happens here rather than on the device, which only ever
     // stores the coordinates and the name.
-    let WX = { lat: 0, lon: 0, name: '' };
-    let GEO = [];
+    let selectedPlace = { lat: 0, lon: 0, name: '' };
+    let places = [];
 
     function showWx() {
-      wn.textContent = WX.name || 'NOT SET';
-      sumWeather.textContent = (WX.name || 'NOT SET');
+      const name = selectedPlace.name || 'NOT SET';
+      wn.textContent = name;
+      sumWeather.textContent = name;
     }
 
     async function geocode() {
@@ -833,53 +874,52 @@
 
       try {
         const u = 'https://geocoding-api.open-meteo.com/v1/search?count=8&language=en&format=json&name=' + encodeURIComponent(q);
-        GEO = (await get(u)).results || [];
+        places = (await get(u)).results || [];
       } catch (e) {
-        GEO = [];
+        places = [];
       }
 
-      if (!GEO.length) {
+      if (!places.length) {
         wr.textContent = 'NO MATCHES';
         lwl.style.display = 'none';
         return;
       }
 
-      wl.innerHTML = GEO.map((p, i) =>
-        `<option value="${i}">${esc(p.name)}${p.admin1 ? ', ' + esc(p.admin1) : ''}, ${esc(p.country || '')}</option>`).join('');
+      wl.replaceChildren(...places.map((p, i) => new Option(
+        [p.name, p.admin1, p.country].filter(Boolean).join(', '), i)));
       lwl.style.display = '';
-      wr.textContent = GEO.length + ' MATCH' + (GEO.length > 1 ? 'ES' : '');
+      wr.textContent = places.length + ' MATCH' + (places.length > 1 ? 'ES' : '');
       pickPlace();
     }
 
     function pickPlace() {
-      const p = GEO[wl.value];
+      const p = places[wl.value];
       if (!p) return;
       // Accents are stripped because the panel font is ASCII only.
-      WX = { lat: p.latitude, lon: p.longitude, name: deaccent(p.name).toUpperCase() };
+      selectedPlace = { lat: p.latitude, lon: p.longitude, name: deaccent(p.name).toUpperCase() };
       showWx();
     }
 
-    async function loadWx() {
+    async function loadWx(expected = selectedPlace) {
       const w = await get('/api/weather');
-      WX = { lat: w.lat, lon: w.lon, name: (w.name || '').toUpperCase() };
+      if (selectedPlace !== expected) return;
+      selectedPlace = { lat: w.lat, lon: w.lon, name: (w.name || '').toUpperCase() };
       showWx();
     }
 
     // The unit saves either way, so it can be changed before a location is set.
     async function sendWx() {
-      await fetch('/api/units?f=' + (uf.checked ? 1 : 0), { method: 'POST' });
-      showWx();
-
-      if (!WX.name) {
-        wr.textContent = 'UNIT SAVED, NOW SEARCH FOR A TOWN';
-        wr.className = 'm';
+      const place = selectedPlace;
+      if (!await post('/api/units', { f: uf.checked ? 1 : 0 }, wr)) return;
+      if (!place.name) {
+        feedback(wr, 'UNIT SAVED, NOW SEARCH FOR A TOWN', true);
         return;
       }
-
-      const q = new URLSearchParams({ lat: WX.lat, lon: WX.lon, name: WX.name });
-      const r = await fetch('/api/weather?' + q, { method: 'POST' });
-      status(wr, r.ok, 'SAVED - FETCHING WEATHER');
-      setTimeout(loadWx, 800);
+      if (await post('/api/weather', place, wr, 'UNIT SAVED - LOCATION SAVE FAILED')) {
+        feedback(wr, 'SAVED - FETCHING WEATHER', true);
+        try { await loadWx(place); }
+        catch { feedback(wr, 'SAVED - REFRESH FAILED'); }
+      }
     }
 
     async function loadUnits() {
@@ -887,18 +927,24 @@
       (u.fahrenheit ? uf : uc).checked = true;
     }
 
-    // MARKETS ----------------------------------------------------------
+    // Markets
     // The symbol search happens here too, same pattern as the weather lookup.
-    let SYM = '';
-    let SYMS = [];
+    let selectedSymbol = '';
+    let symbols = [];
+    let marketConfigured = false;
 
     async function loadMarket() {
       const m = await get('/api/markets');
-      mkst.textContent = m.configured ? 'KEY SET' : 'NOT SET';
-      mkst.className = m.configured ? 'ok' : '';
-      SYM = m.symbol;
-      msym.textContent = SYM;
-      sumMarkets.textContent = m.configured ? SYM : 'NO KEY';
+      selectedSymbol = m.symbol;
+      msym.textContent = selectedSymbol;
+      showMarketSettings(m.configured, m.symbol);
+    }
+
+    function showMarketSettings(configured, symbol) {
+      marketConfigured = configured;
+      mkst.textContent = configured ? 'KEY SET' : 'NOT SET';
+      mkst.className = configured ? 'ok' : '';
+      sumMarkets.textContent = configured ? symbol : 'NO KEY';
     }
 
     async function symSearch() {
@@ -910,52 +956,47 @@
 
       try {
         const u = 'https://api.twelvedata.com/symbol_search?outputsize=10&symbol=' + encodeURIComponent(q);
-        SYMS = (await get(u)).data || [];
+        symbols = (await get(u)).data || [];
       } catch (e) {
-        SYMS = [];
+        symbols = [];
       }
 
       // The free tier covers US markets, so anything else would fail at fetch.
-      SYMS = SYMS.filter(s => s.country === 'United States');
+      symbols = symbols.filter(s => s.country === 'United States');
 
-      if (!SYMS.length) {
+      if (!symbols.length) {
         mkr.textContent = 'NO US-LISTED MATCHES';
         lmsl.style.display = 'none';
         return;
       }
 
-      msl.innerHTML = SYMS.map((s, i) =>
-        `<option value="${i}">${esc(s.symbol)} - ${esc(s.instrument_name)}</option>`).join('');
+      msl.replaceChildren(...symbols.map((s, i) => new Option(s.symbol + ' - ' + s.instrument_name, i)));
       lmsl.style.display = '';
-      mkr.textContent = SYMS.length + ' MATCH' + (SYMS.length > 1 ? 'ES' : '');
+      mkr.textContent = symbols.length + ' MATCH' + (symbols.length > 1 ? 'ES' : '');
       pickSymbol();
     }
 
     function pickSymbol() {
-      const s = SYMS[msl.value];
+      const s = symbols[msl.value];
       if (!s) return;
-      SYM = s.symbol;
-      msym.textContent = SYM;
+      selectedSymbol = s.symbol;
+      msym.textContent = selectedSymbol;
     }
 
     // The key is only sent when the field has something in it, so the symbol
     // can be changed without re-entering it.
     async function sendMarket() {
       const key = mk.value.trim();
-      const body = new URLSearchParams({ symbol: SYM });
-      if (key) body.append('key', key);
-
-      const r = await fetch('/api/markets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString()
-      });
-      status(mkr, r.ok, 'SAVED - FETCHING PRICE', 'REJECTED, CHECK THE KEY');
-      mk.value = '';
-      setTimeout(loadMarket, 800);
+      const fields = { symbol: selectedSymbol };
+      if (key) fields.key = key;
+      if (await post('/api/markets', fields, mkr)) {
+        showMarketSettings(marketConfigured || Boolean(key), fields.symbol);
+        if (key && mk.value.trim() === key) mk.value = '';
+        feedback(mkr, 'SAVED - FETCHING PRICE', true);
+      }
     }
 
-    // DISPLAY ----------------------------------------------------------
+    // Display
     // Only one of the screen picker and the rotation timer applies at a time.
     function modeChanged() {
       const pinned = dm1.checked;
@@ -969,47 +1010,61 @@
     }
 
     async function syncDisplay() {
-      const q = new URLSearchParams({
+      const fields = {
         mode: dm1.checked ? 1 : 0,
         screen: ss.value,
         dwell: dw.value,
         dark: dk.checked ? 1 : 0
-      });
-      const r = await fetch('/api/display?' + q, { method: 'POST' });
-      status(sr, r.ok);
-      setTimeout(load, 600);
+      };
+      if (await post('/api/display', fields, sr)) {
+        modeChanged();
+        feedback(sr, 'SAVED', true);
+      }
     }
 
-    // STARTUP ----------------------------------------------------------
-    async function load() {
-      const [zs, c, sc, d] = await Promise.all([
-        get('/api/timezones'),
-        get('/api/clock'),
-        get('/api/screens'),
-        get('/api/display')
-      ]);
-
-      tz.innerHTML = zs.map(z => `<option value="${z.posix}" data-l="${z.label}">${z.label}</option>`).join('');
+    async function loadClock() {
+      const [zones, c] = await Promise.all([get('/api/timezones'), get('/api/clock')]);
+      tz.replaceChildren(...zones.map(z => new Option(z.label, z.posix)));
       tz.value = c.tz;
+      // Several cities share a POSIX rule. Restore the saved city when possible.
+      const city = Array.from(tz.options).find(o => o.value === c.tz && o.text === c.label);
+      if (city) city.selected = true;
       sd.checked = c.showDate;
       sumClock.textContent = c.label;
+    }
 
-      ss.innerHTML = sc.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    async function loadDisplay() {
+      const [screens, d] = await Promise.all([get('/api/screens'), get('/api/display')]);
+      ss.replaceChildren(...screens.map(s => new Option(s.name, s.id)));
       ss.value = d.screen;
 
-      let opts = '';
-      for (let m = d.min; m <= d.max; m += d.step) opts += `<option value="${m}">${m} MINUTES</option>`;
-      dw.innerHTML = opts;
+      dw.replaceChildren();
+      for (let m = d.min; m <= d.max; m += d.step) dw.add(new Option(m + ' MINUTES', m));
       dw.value = d.dwell;
 
       (d.mode == 1 ? dm1 : dm0).checked = true;
       dk.checked = d.dark;
 
-      await Promise.all([loadTasks(), loadUnits(), loadWx(), loadMarket()]);
       modeChanged();
     }
 
-    load();
+    // Enable each save button once its current settings have loaded.
+    async function initialize(section, result, load) {
+      const button = section.querySelector('.actions button');
+      button.disabled = true;
+      try {
+        await load();
+        button.disabled = false;
+      } catch {
+        feedback(result, 'LOAD FAILED - RELOAD THE PAGE');
+      }
+    }
+
+    initialize(secClock, cr, loadClock);
+    initialize(secTasks, tr, loadTasks);
+    initialize(secWeather, wr, () => Promise.all([loadWx(), loadUnits()]));
+    initialize(secMarkets, mkr, loadMarket);
+    initialize(secDisplay, sr, loadDisplay);
     loadStatus();
     setInterval(loadStatus, 5000);
   </script>

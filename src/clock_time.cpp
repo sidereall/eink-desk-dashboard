@@ -1,9 +1,9 @@
-// clock_time.cpp
+// Synchronizes the clock with NTP and applies local time zone rules.
+
 #include <Arduino.h>
 #include <ctype.h>
 #include <stdio.h>
-#include <string.h>
-#include <sys/time.h>
+#include <stdlib.h>
 
 #include "app_settings.h"
 #include "clock_time.h"
@@ -68,4 +68,17 @@ void clockFormatDateLong(const struct tm &t, char *buf, size_t n) {
 
   // Abbreviated month, full month name would run into the task counter
   snprintf(buf, n, "%s, %d %s", wd, t.tm_mday, mo);
+}
+
+uint32_t clockNextFetchDelay(uint32_t intervalMs, uint16_t offsetSeconds) {
+  struct tm now;
+  if (!clockGetLocal(now))
+    return intervalMs;
+
+  const int32_t interval = intervalMs / 1000;
+  const int32_t elapsed = now.tm_hour * 3600 + now.tm_min * 60 + now.tm_sec;
+  int32_t delay = offsetSeconds - elapsed % interval;
+  if (delay <= FETCH_SLOT_MIN_GAP_SEC)
+    delay += interval;
+  return delay * 1000UL;
 }
