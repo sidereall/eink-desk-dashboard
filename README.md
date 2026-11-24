@@ -37,7 +37,7 @@ The firmware uses the pins in the diagram. If you use another C6 board, check it
 
 ## Flash and set up
 
-1. With PlatformIO installed, clone the project and copy the Wi-Fi template.
+1. Install the pioarduino IDE extension for VS Code or follow the [pioarduino CLI installation instructions](https://github.com/pioarduino/platform-espressif32#installation). Then clone the project and copy the Wi-Fi template.
 
    ```sh
    git clone https://github.com/sidereall/eink-desk-dashboard
